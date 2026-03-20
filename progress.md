@@ -9,14 +9,98 @@
 | 階段 | 狀態 |
 |------|:----:|
 | 設計文檔 | ✅ |
-| 合約實作 | ⬜ |
-| 測試 | ⬜ |
-| 部署 | ⬜ |
+| 實作計畫 | ✅ |
+| 合約實作 | ✅ |
+| 測試 | ✅ |
+| 部署 | ✅ testnet |
 | 上層整合 | ⬜ |
 
 ---
 
 ## 進度日誌
+
+### 2026-03-20 — Testnet 部署完成
+
+#### 做了什麼
+- 直接部署到 testnet（跳過 devnet）
+- 5 modules 全部上鏈：bounty, constants, display, escrow, verifier
+
+#### 鏈上資訊
+- **Package ID**: `0x8222b1e623985cf9ef25d6d60f8a812c24fb0ac81f8ab6db6929bde273e6cb16`
+- **UpgradeCap**: `0x10e4164c6dae28a5a861865852c794c462f1085bf277219a4e7eac47bcc8b7e9`
+- **Publisher**: `0xea53d338b91c332c74b6a76ca3111340867a65314957e973a1133c07787286b7`
+- **Tx Digest**: `J7BYxGr7rxmK8rD17Zv7sdJNdtfPauQAJ5ZM754hNhtw`
+- **Gas**: ~0.097 SUI
+
+#### 下一步
+- 上層整合：Explorer Hub / Fleet Command / DAO 引用 public fun
+- 可選：Display V2 registration（用 Publisher object）
+- 可選：mainnet 部署
+
+## 進度日誌
+
+### 2026-03-20 — 合約實作完成
+
+#### 做了什麼
+- 完成 14 個 task 的完整實作（scaffold → constants → escrow → verifier → bounty → tests）
+- 5 個 source modules: `constants.move`, `escrow.move`, `verifier.move`, `bounty.move` (核心), `display.move`
+- 8 個 test files: test_create, test_claim, test_approve_claim, test_abandon, test_cancel_withdraw, test_expire, test_monkey, test_integration
+- **55 tests 全部通過**
+- 清理所有 linter warnings（redundant imports, deprecated APIs, public entry → public）
+
+#### 更動/新增了哪些檔案
+- `[NEW] bounty_escrow/Move.toml`
+- `[NEW] bounty_escrow/sources/constants.move` — 狀態碼、上限、35 個錯誤碼
+- `[NEW] bounty_escrow/sources/escrow.move` — Balance lock/release/calculate (u128 溢出保護)
+- `[NEW] bounty_escrow/sources/verifier.move` — VerifierCap mint/validate/destroy
+- `[NEW] bounty_escrow/sources/bounty.move` — 核心狀態機 (730 lines)
+  - Structs: Bounty<T>, ClaimTicket + 12 events
+  - Functions: create, claim, approve, claim_reward, abandon, cancel, withdraw_penalty, withdraw_remaining, expire, destroy_ticket, destroy_verifier_cap
+  - 每個 public fun 都有對應的 entry wrapper
+- `[NEW] bounty_escrow/sources/display.move` — OTW=DISPLAY, Publisher claim
+- `[NEW] bounty_escrow/tests/test_create.move` — 10 tests
+- `[NEW] bounty_escrow/tests/test_claim.move` — 7 tests
+- `[NEW] bounty_escrow/tests/test_approve_claim.move` — 4 tests
+- `[NEW] bounty_escrow/tests/test_abandon.move` — 4 tests
+- `[NEW] bounty_escrow/tests/test_cancel_withdraw.move` — 7 tests
+- `[NEW] bounty_escrow/tests/test_expire.move` — 5 tests
+- `[NEW] bounty_escrow/tests/test_monkey.move` — 10 tests (edge cases, overflow, zero-stake)
+- `[NEW] bounty_escrow/tests/test_integration.move` — 8 tests (full lifecycle scenarios)
+
+#### 關鍵實作決策
+- `BountyCreated.coin_type` 用 `std::ascii::String`（type_name::into_string 回傳 ascii）
+- Move 2024: `public entry` redundant → 改用 `public fun` for entry wrappers
+- `vec_set::size` / `vec_map::size` → `length`（deprecated API 更新）
+- `std::type_name::get` → `with_defining_ids`（deprecated API 更新）
+
+#### 下一步
+- 部署到 devnet: `sui client publish --gas-budget 100000000`
+- 上層整合：Frontier Explorer Hub / Fleet Command / DAO 引用 public fun 版本
+- 可選：Display V2 registration via PTB（需要 Publisher object）
+
+---
+
+### 2026-03-20 — 實作計畫完成
+
+#### 做了什麼
+- 完成 14-task implementation plan（writing-plans → plan review → fix）
+- Plan review 修正：
+  - 所有 entry function 補上 `public fun` 版本（spec 要求，composability 關鍵）
+  - cancel 移除無用 clock 參數
+  - withdraw_remaining 加 `vec_map::is_empty` 雙重檢查
+  - 補齊 45+ test cases（原 plan 有 3 個 test file 缺 code）
+  - 補齊所有 spec monkey test scenarios（原 plan 只涵蓋 5/11）
+- OTW 命名修正：display.move 用 `DISPLAY` 而非 spec 的 `BOUNTY_ESCROW`
+
+#### 更動/新增了哪些檔案
+- `[NEW] docs/superpowers/plans/2026-03-20-bounty-escrow-protocol.md`
+
+#### 下一步
+- 開新 chat 執行實作計畫（Task 1-14）
+- Task 1-3 可序列執行（基礎模組），Task 6-9 可平行執行（獨立功能）
+- Task 12-13 測試需在所有功能完成後執行
+
+---
 
 ### 2026-03-20 — Spec 設計 + 三方審查
 

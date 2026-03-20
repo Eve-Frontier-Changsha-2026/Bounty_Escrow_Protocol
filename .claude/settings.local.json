@@ -1,8 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(sui:*)", "Bash(npm:*)", "Bash(npx:*)", "Bash(pnpm:*)",
-      "Bash(ls:*)"
+      "Bash(sui:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(ls:*)",
+      "Bash(kill 45312 45314)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(echo \"EXIT_CODE:$?\")",
+      "Bash(find /Users/ramonliao/Documents/Code/Project/Web3/Hackathon/2026_HoH_SUI_HackerHouse_Changsha/EVE_Frontier/build/projects/Fleet_Command_Doctrine -maxdepth 3 -type f \\\\\\(-name *.md -o -name *.move -o -name Move.toml \\\\\\))"
     ]
   },
   "enabledPlugins": {
