@@ -1,7 +1,6 @@
 module bounty_escrow::display;
 
 use sui::package;
-use sui::transfer;
 
 /// OTW for claiming Publisher. Module name = display, so OTW = DISPLAY.
 public struct DISPLAY has drop {}

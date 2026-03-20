@@ -1,7 +1,5 @@
 module bounty_escrow::verifier;
 
-use sui::object::{Self, UID, ID};
-use sui::transfer;
 use bounty_escrow::constants;
 
 /// Capability token for verifying bounty completion.

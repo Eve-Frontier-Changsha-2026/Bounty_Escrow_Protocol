@@ -1,11 +1,9 @@
 module bounty_escrow::bounty;
 
 use std::string::String;
-use sui::object::{Self, UID, ID};
 use sui::balance::{Self, Balance};
 use sui::coin::{Self, Coin};
 use sui::clock::Clock;
-use sui::transfer;
 use sui::event;
 use sui::vec_set::{Self, VecSet};
 use sui::vec_map::{Self, VecMap};
@@ -163,7 +161,7 @@ fun is_terminal(status: u8): bool {
 public fun create_bounty<T>(
     title: String,
     description: String,
-    mut coin: Coin<T>,
+    coin: Coin<T>,
     reward_amount: u64,
     required_stake: u64,
     max_claims: u64,
@@ -228,7 +226,7 @@ public fun create_bounty<T>(
     event::emit(BountyCreated {
         bounty_id,
         creator: sender,
-        coin_type: std::type_name::into_string(std::type_name::get<T>()),
+        coin_type: std::type_name::into_string(std::type_name::with_defining_ids<T>()),
         reward_amount,
         required_stake,
         max_claims,
@@ -243,7 +241,7 @@ public fun create_bounty<T>(
     change
 }
 
-public entry fun create<T>(
+public fun create<T>(
     title: String,
     description: String,
     coin: Coin<T>,
@@ -323,7 +321,7 @@ public fun claim_bounty<T>(
     (ticket, change)
 }
 
-public entry fun claim<T>(
+public fun claim<T>(
     bounty: &mut Bounty<T>,
     stake_coin: Coin<T>,
     clock: &Clock,
@@ -351,7 +349,7 @@ fun resolve_claim<T>(bounty: &mut Bounty<T>, hunter: address, is_completion: boo
     };
 
     if (bounty.active_claims == 0 && bounty.completed_claims > 0 &&
-        vec_set::size(&bounty.approved_hunters) == 0) {
+        vec_set::length(&bounty.approved_hunters) == 0) {
         bounty.status = constants::status_completed();
     } else if (bounty.active_claims < bounty.max_claims &&
                bounty.status == constants::status_claimed()) {
@@ -387,7 +385,7 @@ public fun approve_hunter<T>(
     });
 }
 
-public entry fun approve<T>(
+public fun approve<T>(
     bounty: &mut Bounty<T>,
     hunter: address,
     cap: &VerifierCap,
@@ -434,7 +432,7 @@ public fun claim_reward_bounty<T>(
     object::delete(id);
 }
 
-public entry fun claim_reward<T>(
+public fun claim_reward<T>(
     bounty: &mut Bounty<T>,
     ticket: ClaimTicket,
     ctx: &mut TxContext,
@@ -483,7 +481,7 @@ public fun abandon_bounty<T>(
     object::delete(id);
 }
 
-public entry fun abandon<T>(
+public fun abandon<T>(
     bounty: &mut Bounty<T>,
     ticket: ClaimTicket,
     clock: &Clock,
@@ -526,7 +524,7 @@ public fun cancel_bounty<T>(
     };
 }
 
-public entry fun cancel<T>(
+public fun cancel<T>(
     bounty: &mut Bounty<T>,
     ctx: &mut TxContext,
 ) {
@@ -576,7 +574,7 @@ public fun withdraw_penalty_bounty<T>(
     object::delete(id);
 }
 
-public entry fun withdraw_penalty<T>(
+public fun withdraw_penalty<T>(
     bounty: &mut Bounty<T>,
     ticket: ClaimTicket,
     ctx: &mut TxContext,
@@ -610,7 +608,7 @@ public fun withdraw_remaining_bounty<T>(
     });
 }
 
-public entry fun withdraw_remaining<T>(
+public fun withdraw_remaining<T>(
     bounty: &mut Bounty<T>,
     ctx: &mut TxContext,
 ) {
@@ -650,7 +648,7 @@ public fun expire_bounty<T>(
 
     bounty.status = constants::status_expired();
 
-    while (vec_map::size(&bounty.active_hunter_stakes) > 0) {
+    while (vec_map::length(&bounty.active_hunter_stakes) > 0) {
         let (_, _) = vec_map::pop(&mut bounty.active_hunter_stakes);
     };
     bounty.active_claims = 0;
@@ -666,7 +664,7 @@ public fun expire_bounty<T>(
     cleanup_coin
 }
 
-public entry fun expire<T>(
+public fun expire<T>(
     bounty: &mut Bounty<T>,
     clock: &Clock,
     ctx: &mut TxContext,
@@ -698,7 +696,7 @@ public fun destroy_ticket_bounty<T>(
     event::emit(TicketDestroyed { bounty_id, ticket_id });
 }
 
-public entry fun destroy_ticket<T>(
+public fun destroy_ticket<T>(
     ticket: ClaimTicket,
     bounty: &Bounty<T>,
 ) {
@@ -721,7 +719,7 @@ public fun destroy_verifier_cap_bounty<T>(
     event::emit(VerifierCapDestroyed { bounty_id, cap_id });
 }
 
-public entry fun destroy_verifier_cap<T>(
+public fun destroy_verifier_cap<T>(
     cap: VerifierCap,
     bounty: &Bounty<T>,
 ) {

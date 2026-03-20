@@ -2,7 +2,6 @@ module bounty_escrow::escrow;
 
 use sui::balance::{Self, Balance};
 use sui::coin::{Self, Coin};
-use sui::transfer;
 
 /// Lock `amount` from `coin` into `balance`. Returns change back as Coin.
 public(package) fun lock<T>(
