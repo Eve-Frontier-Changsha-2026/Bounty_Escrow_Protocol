@@ -270,3 +270,412 @@ public entry fun create<T>(
         coin::destroy_zero(change);
     };
 }
+
+// === Claim ===
+
+public fun claim_bounty<T>(
+    bounty: &mut Bounty<T>,
+    stake_coin: Coin<T>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): (ClaimTicket, Coin<T>) {
+    let now = sui::clock::timestamp_ms(clock);
+    let hunter = ctx.sender();
+
+    assert!(bounty.status == constants::status_open(), constants::e_bounty_not_open());
+    assert!(bounty.active_claims < bounty.max_claims, constants::e_max_claims_reached());
+    assert!(now < bounty.deadline, constants::e_deadline_passed());
+    assert!(hunter != bounty.creator, constants::e_creator_cannot_claim());
+    assert!(!vec_set::contains(&bounty.claimed_hunters, &hunter), constants::e_already_claimed());
+    assert!(coin::value(&stake_coin) >= bounty.required_stake, constants::e_insufficient_stake());
+
+    // Lock stake
+    let change = if (bounty.required_stake > 0) {
+        escrow::lock(&mut bounty.stake_pool, stake_coin, bounty.required_stake, ctx)
+    } else {
+        stake_coin
+    };
+
+    // Update state
+    vec_set::insert(&mut bounty.claimed_hunters, hunter);
+    vec_map::insert(&mut bounty.active_hunter_stakes, hunter, bounty.required_stake);
+    bounty.active_claims = bounty.active_claims + 1;
+
+    if (bounty.active_claims == bounty.max_claims) {
+        bounty.status = constants::status_claimed();
+    };
+
+    let ticket = ClaimTicket {
+        id: object::new(ctx),
+        bounty_id: object::id(bounty),
+        hunter,
+        stake_amount: bounty.required_stake,
+        claimed_at: now,
+    };
+
+    event::emit(BountyClaimed {
+        bounty_id: object::id(bounty),
+        ticket_id: object::id(&ticket),
+        hunter,
+        stake_amount: bounty.required_stake,
+    });
+
+    (ticket, change)
+}
+
+public entry fun claim<T>(
+    bounty: &mut Bounty<T>,
+    stake_coin: Coin<T>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let (ticket, change) = claim_bounty(bounty, stake_coin, clock, ctx);
+    let sender = ctx.sender();
+    transfer::transfer(ticket, sender);
+    if (coin::value(&change) > 0) {
+        transfer::public_transfer(change, sender);
+    } else {
+        coin::destroy_zero(change);
+    };
+}
+
+// === Internal: resolve claim ===
+
+fun resolve_claim<T>(bounty: &mut Bounty<T>, hunter: address, is_completion: bool) {
+    let (_, _stake) = vec_map::remove(&mut bounty.active_hunter_stakes, &hunter);
+    bounty.active_claims = bounty.active_claims - 1;
+
+    if (is_completion) {
+        bounty.completed_claims = bounty.completed_claims + 1;
+        vec_set::remove(&mut bounty.approved_hunters, &hunter);
+    };
+
+    if (bounty.active_claims == 0 && bounty.completed_claims > 0 &&
+        vec_set::size(&bounty.approved_hunters) == 0) {
+        bounty.status = constants::status_completed();
+    } else if (bounty.active_claims < bounty.max_claims &&
+               bounty.status == constants::status_claimed()) {
+        bounty.status = constants::status_open();
+    };
+}
+
+// === Approve ===
+
+public fun approve_hunter<T>(
+    bounty: &mut Bounty<T>,
+    hunter: address,
+    cap: &VerifierCap,
+    clock: &Clock,
+    _ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let bounty_id = object::id(bounty);
+
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    verifier::validate_cap(cap, bounty_id);
+    assert!(vec_map::contains(&bounty.active_hunter_stakes, &hunter), constants::e_hunter_not_active());
+    assert!(!vec_set::contains(&bounty.approved_hunters, &hunter), constants::e_already_approved());
+    assert!(now <= bounty.deadline + bounty.grace_period, constants::e_grace_period_not_passed());
+
+    vec_set::insert(&mut bounty.approved_hunters, hunter);
+
+    event::emit(BountyApproved {
+        bounty_id,
+        hunter,
+        verifier: _ctx.sender(),
+    });
+}
+
+public entry fun approve<T>(
+    bounty: &mut Bounty<T>,
+    hunter: address,
+    cap: &VerifierCap,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    approve_hunter(bounty, hunter, cap, clock, ctx);
+}
+
+// === Claim Reward ===
+
+public fun claim_reward_bounty<T>(
+    bounty: &mut Bounty<T>,
+    ticket: ClaimTicket,
+    ctx: &mut TxContext,
+) {
+    let hunter = ctx.sender();
+    let bounty_id = object::id(bounty);
+
+    assert!(ticket.bounty_id == bounty_id, constants::e_ticket_bounty_mismatch());
+    assert!(ticket.hunter == hunter, constants::e_not_ticket_owner());
+    assert!(vec_set::contains(&bounty.approved_hunters, &hunter), constants::e_hunter_not_approved());
+    assert!(balance::value(&bounty.escrow) >= bounty.reward_amount, constants::e_insufficient_escrow_for_reward());
+
+    let stake_amount = ticket.stake_amount;
+    let reward = bounty.reward_amount;
+
+    escrow::release_to(&mut bounty.escrow, reward, hunter, ctx);
+    if (stake_amount > 0) {
+        escrow::release_to(&mut bounty.stake_pool, stake_amount, hunter, ctx);
+    };
+
+    resolve_claim(bounty, hunter, true);
+
+    event::emit(RewardClaimed {
+        bounty_id,
+        ticket_id: object::id(&ticket),
+        hunter,
+        reward_amount: reward,
+        stake_returned: stake_amount,
+    });
+
+    let ClaimTicket { id, bounty_id: _, hunter: _, stake_amount: _, claimed_at: _ } = ticket;
+    object::delete(id);
+}
+
+public entry fun claim_reward<T>(
+    bounty: &mut Bounty<T>,
+    ticket: ClaimTicket,
+    ctx: &mut TxContext,
+) {
+    claim_reward_bounty(bounty, ticket, ctx);
+}
+
+// === Abandon ===
+
+public fun abandon_bounty<T>(
+    bounty: &mut Bounty<T>,
+    ticket: ClaimTicket,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let hunter = ctx.sender();
+    let bounty_id = object::id(bounty);
+
+    assert!(ticket.bounty_id == bounty_id, constants::e_ticket_bounty_mismatch());
+    assert!(ticket.hunter == hunter, constants::e_not_ticket_owner());
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    assert!(now < bounty.deadline, constants::e_abandon_after_deadline());
+
+    let stake_amount = ticket.stake_amount;
+
+    if (stake_amount > 0) {
+        escrow::release_to(&mut bounty.stake_pool, stake_amount, bounty.creator, ctx);
+    };
+
+    if (vec_set::contains(&bounty.approved_hunters, &hunter)) {
+        vec_set::remove(&mut bounty.approved_hunters, &hunter);
+    };
+
+    resolve_claim(bounty, hunter, false);
+
+    event::emit(BountyAbandoned {
+        bounty_id,
+        ticket_id: object::id(&ticket),
+        hunter,
+        forfeited_stake: stake_amount,
+    });
+
+    let ClaimTicket { id, bounty_id: _, hunter: _, stake_amount: _, claimed_at: _ } = ticket;
+    object::delete(id);
+}
+
+public entry fun abandon<T>(
+    bounty: &mut Bounty<T>,
+    ticket: ClaimTicket,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    abandon_bounty(bounty, ticket, clock, ctx);
+}
+
+// === Cancel ===
+
+public fun cancel_bounty<T>(
+    bounty: &mut Bounty<T>,
+    ctx: &mut TxContext,
+) {
+    let sender = ctx.sender();
+    assert!(sender == bounty.creator, constants::e_not_creator());
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_cancellable());
+
+    if (bounty.active_claims == 0) {
+        escrow::release_all(&mut bounty.escrow, bounty.creator, ctx);
+        bounty.status = constants::status_cancelled();
+        event::emit(BountyCancelled {
+            bounty_id: object::id(bounty),
+            creator: sender,
+            active_claims_at_cancel: 0,
+            penalty_per_hunter: 0,
+        });
+    } else {
+        let total_penalty = checked_mul(bounty.required_stake, bounty.active_claims);
+        assert!(balance::value(&bounty.escrow) >= total_penalty,
+            constants::e_insufficient_escrow_for_penalty());
+        bounty.status = constants::status_cancelled();
+        event::emit(BountyCancelled {
+            bounty_id: object::id(bounty),
+            creator: sender,
+            active_claims_at_cancel: bounty.active_claims,
+            penalty_per_hunter: bounty.required_stake,
+        });
+    };
+}
+
+public entry fun cancel<T>(
+    bounty: &mut Bounty<T>,
+    ctx: &mut TxContext,
+) {
+    cancel_bounty(bounty, ctx);
+}
+
+// === Withdraw Penalty ===
+
+public fun withdraw_penalty_bounty<T>(
+    bounty: &mut Bounty<T>,
+    ticket: ClaimTicket,
+    ctx: &mut TxContext,
+) {
+    let hunter = ctx.sender();
+    let bounty_id = object::id(bounty);
+
+    assert!(bounty.status == constants::status_cancelled(), constants::e_bounty_not_cancelled());
+    assert!(ticket.bounty_id == bounty_id, constants::e_ticket_bounty_mismatch());
+    assert!(ticket.hunter == hunter, constants::e_not_ticket_owner());
+    assert!(vec_map::contains(&bounty.active_hunter_stakes, &hunter), constants::e_hunter_not_active());
+
+    let stake_amount = ticket.stake_amount;
+    let penalty = bounty.required_stake;
+
+    if (stake_amount > 0) {
+        escrow::release_to(&mut bounty.stake_pool, stake_amount, hunter, ctx);
+    };
+    if (penalty > 0) {
+        escrow::release_to(&mut bounty.escrow, penalty, hunter, ctx);
+    };
+
+    let (_, _) = vec_map::remove(&mut bounty.active_hunter_stakes, &hunter);
+    bounty.active_claims = bounty.active_claims - 1;
+
+    if (vec_set::contains(&bounty.approved_hunters, &hunter)) {
+        vec_set::remove(&mut bounty.approved_hunters, &hunter);
+    };
+
+    event::emit(PenaltyWithdrawn {
+        bounty_id,
+        hunter,
+        stake_returned: stake_amount,
+        penalty_received: penalty,
+    });
+
+    let ClaimTicket { id, bounty_id: _, hunter: _, stake_amount: _, claimed_at: _ } = ticket;
+    object::delete(id);
+}
+
+public entry fun withdraw_penalty<T>(
+    bounty: &mut Bounty<T>,
+    ticket: ClaimTicket,
+    ctx: &mut TxContext,
+) {
+    withdraw_penalty_bounty(bounty, ticket, ctx);
+}
+
+// === Withdraw Remaining ===
+
+public fun withdraw_remaining_bounty<T>(
+    bounty: &mut Bounty<T>,
+    ctx: &mut TxContext,
+) {
+    let sender = ctx.sender();
+    assert!(sender == bounty.creator, constants::e_not_creator());
+    assert!(bounty.status == constants::status_cancelled(), constants::e_bounty_not_cancelled());
+    assert!(bounty.active_claims == 0, constants::e_hunters_not_withdrawn());
+    assert!(vec_map::is_empty(&bounty.active_hunter_stakes), constants::e_hunters_not_withdrawn());
+
+    let escrow_left = balance::value(&bounty.escrow);
+    let stakes_left = balance::value(&bounty.stake_pool);
+
+    escrow::release_all(&mut bounty.escrow, bounty.creator, ctx);
+    escrow::release_all(&mut bounty.stake_pool, bounty.creator, ctx);
+
+    event::emit(RemainingWithdrawn {
+        bounty_id: object::id(bounty),
+        creator: sender,
+        escrow_returned: escrow_left,
+        stakes_returned: stakes_left,
+    });
+}
+
+public entry fun withdraw_remaining<T>(
+    bounty: &mut Bounty<T>,
+    ctx: &mut TxContext,
+) {
+    withdraw_remaining_bounty(bounty, ctx);
+}
+
+// === Expire ===
+
+public fun expire_bounty<T>(
+    bounty: &mut Bounty<T>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): Coin<T> {
+    let now = sui::clock::timestamp_ms(clock);
+    let caller = ctx.sender();
+
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    assert!(now > bounty.deadline + bounty.grace_period,
+        constants::e_grace_period_not_passed());
+
+    let escrow_remaining = balance::value(&bounty.escrow);
+    let cleanup_reward = escrow::calculate_cleanup_reward(escrow_remaining, bounty.cleanup_reward_bps);
+
+    // Take cleanup reward as coin to return
+    let cleanup_coin = if (cleanup_reward > 0) {
+        coin::take(&mut bounty.escrow, cleanup_reward, ctx)
+    } else {
+        coin::zero<T>(ctx)
+    };
+
+    let forfeited = balance::value(&bounty.stake_pool);
+    escrow::release_all(&mut bounty.stake_pool, bounty.creator, ctx);
+
+    let refund = balance::value(&bounty.escrow);
+    escrow::release_all(&mut bounty.escrow, bounty.creator, ctx);
+
+    bounty.status = constants::status_expired();
+
+    while (vec_map::size(&bounty.active_hunter_stakes) > 0) {
+        let (_, _) = vec_map::pop(&mut bounty.active_hunter_stakes);
+    };
+    bounty.active_claims = 0;
+
+    event::emit(BountyExpired {
+        bounty_id: object::id(bounty),
+        caller,
+        cleanup_reward,
+        refund_to_creator: refund,
+        forfeited_stakes: forfeited,
+    });
+
+    cleanup_coin
+}
+
+public entry fun expire<T>(
+    bounty: &mut Bounty<T>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let cleanup_coin = expire_bounty(bounty, clock, ctx);
+    let caller = ctx.sender();
+    if (coin::value(&cleanup_coin) > 0) {
+        transfer::public_transfer(cleanup_coin, caller);
+    } else {
+        coin::destroy_zero(cleanup_coin);
+    };
+}
