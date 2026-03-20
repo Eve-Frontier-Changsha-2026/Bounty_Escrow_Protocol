@@ -679,3 +679,51 @@ public entry fun expire<T>(
         coin::destroy_zero(cleanup_coin);
     };
 }
+
+// === Cleanup: Destroy Ticket ===
+
+public fun destroy_ticket_bounty<T>(
+    ticket: ClaimTicket,
+    bounty: &Bounty<T>,
+) {
+    assert!(is_terminal(bounty.status), constants::e_bounty_not_terminal());
+    assert!(ticket.bounty_id == object::id(bounty), constants::e_ticket_bounty_mismatch());
+
+    let ticket_id = object::id(&ticket);
+    let bounty_id = ticket.bounty_id;
+
+    let ClaimTicket { id, bounty_id: _, hunter: _, stake_amount: _, claimed_at: _ } = ticket;
+    object::delete(id);
+
+    event::emit(TicketDestroyed { bounty_id, ticket_id });
+}
+
+public entry fun destroy_ticket<T>(
+    ticket: ClaimTicket,
+    bounty: &Bounty<T>,
+) {
+    destroy_ticket_bounty(ticket, bounty);
+}
+
+// === Cleanup: Destroy VerifierCap ===
+
+public fun destroy_verifier_cap_bounty<T>(
+    cap: VerifierCap,
+    bounty: &Bounty<T>,
+) {
+    assert!(is_terminal(bounty.status), constants::e_bounty_not_terminal());
+    let bounty_id = verifier::bounty_id(&cap);
+    assert!(bounty_id == object::id(bounty), constants::e_ticket_bounty_mismatch());
+
+    let cap_id = verifier::cap_id(&cap);
+    verifier::destroy_cap(cap);
+
+    event::emit(VerifierCapDestroyed { bounty_id, cap_id });
+}
+
+public entry fun destroy_verifier_cap<T>(
+    cap: VerifierCap,
+    bounty: &Bounty<T>,
+) {
+    destroy_verifier_cap_bounty(cap, bounty);
+}
