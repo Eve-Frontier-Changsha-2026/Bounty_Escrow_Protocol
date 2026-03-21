@@ -13,11 +13,34 @@
 | 合約實作 | ✅ |
 | 測試 | ✅ |
 | 部署 | ✅ testnet |
-| 上層整合 | ⬜ |
+| 上層整合 | ✅ spec |
 
 ---
 
 ## 進度日誌
+
+### 2026-03-21 — Integration Guide Spec 完成
+
+#### 做了什麼
+- 完成上層整合規格文件 `docs/integration-guide.md`
+- 涵蓋：Protocol Overview、Public API Reference、Generic Integration Pattern
+- 三個場景各附 Move skeleton + TypeScript PTB 範例：
+  - §4 Intel Bounty（Explorer Hub）— 零質押情報懸賞
+  - §5 PvP Bounty（Fleet Command）— 傭兵擊殺合約 + 質押
+  - §6 Logistics Bounty（Tribal DAO）— 後勤任務 + multi-sig verifier
+- Events & Indexing 指南（含 subscription 範例）
+- Upgrade & Migration Notes
+- Appendix：全部 35 個 error codes 對照表
+
+#### 更動/新增了哪些檔案
+- `[NEW] docs/integration-guide.md`
+
+#### 下一步
+- Explorer Hub 實際整合（替換 mock bounty_interface → 引用真正 bounty_escrow）
+- Fleet Command / DAO 等有 Move code 後各開 chat 整合
+- 可選：mainnet 部署
+
+---
 
 ### 2026-03-20 — Testnet 部署完成
 

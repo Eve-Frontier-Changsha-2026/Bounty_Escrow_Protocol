@@ -31,9 +31,13 @@ Open ──claim──▶ Claimed ──approve──▶ (approved set)
 
 | Object | Type | Ownership | 說明 |
 |--------|------|-----------|------|
-| `Bounty<T>` | shared | `share_object` | 主狀態，含 escrow + stake pool |
+| `Bounty<T>` | shared | `share_object` | 主狀態，含 escrow + stake pool + metadata |
 | `ClaimTicket` | owned | hunter | 接單憑證，claim_reward/abandon/withdraw_penalty 時消耗 |
 | `VerifierCap` | owned | verifier | 驗收權限 cap，每個 Bounty 一個 |
+
+### Metadata 欄位
+
+`Bounty<T>` 包含 `metadata: VecMap<String, String>` 欄位（上限 20 entries，每個 value ≤ 1024 bytes）。目前 **無 public API** 可讀寫 metadata — 該欄位保留供未來版本或上層合約透過 package upgrade 使用。整合方不需處理此欄位，建立 Bounty 時 metadata 初始為空。
 
 ### Two-Step Verify
 
@@ -853,7 +857,7 @@ function expireStaleTask(bountyId: string): Transaction {
 
 | Event | 觸發時機 | 關鍵欄位 |
 |-------|---------|----------|
-| `BountyCreated` | `create_bounty` | `bounty_id`, `creator`, `coin_type`, `reward_amount`, `required_stake`, `max_claims`, `deadline`, `grace_period`, `verifier` |
+| `BountyCreated` | `create_bounty` | `bounty_id`, `creator`, `coin_type` (`ascii::String`, e.g. `"0x2::sui::SUI"`), `reward_amount`, `required_stake`, `max_claims`, `deadline`, `grace_period`, `verifier` |
 | `BountyClaimed` | `claim_bounty` | `bounty_id`, `ticket_id`, `hunter`, `stake_amount` |
 | `BountyApproved` | `approve_hunter` | `bounty_id`, `hunter`, `verifier` |
 | `RewardClaimed` | `claim_reward_bounty` | `bounty_id`, `ticket_id`, `hunter`, `reward_amount`, `stake_returned` |
@@ -952,3 +956,47 @@ BountyEscrow = { id = "0x8222...cb16", version = 2 }
 - 上層合約 **不要硬編碼** Bounty package ID — 用 `Move.toml` dependency 管理
 - 使用 `bounty::status()` accessor 而非直接比對數字 — 未來可能新增狀態
 - 監聽 `BountyCreated.coin_type` 欄位過濾 — 支援非 SUI token 的場景
+
+---
+
+## Appendix — Error Codes
+
+`bounty_escrow::constants` 定義的所有錯誤碼。整合方可用於 user-facing 錯誤訊息。
+
+| Code | Constant | 說明 |
+|:----:|----------|------|
+| 0 | `e_insufficient_escrow` | Coin 金額不足以覆蓋 `reward_amount × max_claims` |
+| 1 | `e_deadline_too_soon` | Deadline 距現在 < 1 小時 |
+| 2 | `e_deadline_too_far` | Deadline 距現在 > 365 天 |
+| 3 | `e_cleanup_bps_too_high` | cleanup_reward_bps > 1000 (10%) |
+| 4 | `e_title_too_long` | Title > 256 bytes |
+| 5 | `e_title_empty` | Title 為空 |
+| 6 | `e_description_too_long` | Description > 2048 bytes |
+| 7 | `e_bounty_not_open` | 操作要求 status=Open 但當前不是 |
+| 8 | `e_max_claims_reached` | 已達最大接單數 |
+| 9 | `e_insufficient_stake` | Hunter 提供的 stake coin 不足 |
+| 10 | `e_deadline_passed` | 已過 deadline，無法 claim/abandon |
+| 11 | `e_creator_cannot_claim` | Creator 不能接自己的 bounty |
+| 12 | `e_already_claimed` | 同一 hunter 不能重複接單 |
+| 13 | `e_not_creator` | 非 creator 嘗試 cancel/withdraw |
+| 14 | `e_bounty_not_cancellable` | 狀態不允許取消（已完成/已過期/已取消） |
+| 15 | `e_insufficient_escrow_for_penalty` | Escrow 餘額不足以支付違約金 |
+| 16 | `e_invalid_verifier_cap` | VerifierCap 與 Bounty ID 不匹配 |
+| 17 | `e_hunter_not_active` | Hunter 不在 active_hunter_stakes 中 |
+| 18 | `e_insufficient_escrow_for_reward` | Escrow 餘額不足以支付 reward |
+| 19 | `e_not_ticket_owner` | Ticket 不屬於 sender |
+| 20 | `e_grace_period_not_passed` | Grace period 未結束（expire 太早）或已過（approve 太晚） |
+| 21 | `e_bounty_not_active` | 操作要求 Open/Claimed 但當前不是 |
+| 22 | `e_max_claims_zero` | max_claims 不能為 0 |
+| 23 | `e_reward_amount_zero` | reward_amount 不能為 0 |
+| 24 | `e_max_claims_too_high` | max_claims > 100 |
+| 25 | `e_bounty_not_terminal` | 操作要求終態（Completed/Cancelled/Expired）但當前不是 |
+| 26 | `e_ticket_bounty_mismatch` | ClaimTicket 的 bounty_id 與傳入的 Bounty 不匹配 |
+| 27 | `e_hunter_not_approved` | Hunter 未被 approve，無法 claim_reward |
+| 28 | `e_bounty_not_cancelled` | 操作要求 status=Cancelled 但當前不是 |
+| 29 | `e_hunters_not_withdrawn` | 仍有 hunter 未提取違約金，creator 不能 withdraw_remaining |
+| 30 | `e_abandon_after_deadline` | Deadline 後不能 abandon |
+| 31 | `e_too_many_metadata` | Metadata entries > 20 |
+| 32 | `e_metadata_value_too_long` | Metadata value > 1024 bytes |
+| 33 | `e_already_approved` | Hunter 已被 approve，不能重複 |
+| 34 | `e_overflow` | u64 乘法溢出 |
