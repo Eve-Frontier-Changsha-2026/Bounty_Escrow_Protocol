@@ -1,0 +1,12 @@
+[package]
+name = "pvp_bounty"
+edition = "2024"
+
+[dependencies]
+# Local development (clone repo, then build + test)
+bounty_escrow = { local = "../../bounty_escrow" }
+# Production (testnet published package):
+# bounty_escrow = { id = "0x8222b1e623985cf9ef25d6d60f8a812c24fb0ac81f8ab6db6929bde273e6cb16", version = 1 }
+
+[addresses]
+pvp_bounty = "0x0"

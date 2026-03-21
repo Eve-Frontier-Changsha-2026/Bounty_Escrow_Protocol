@@ -1,2 +1,4 @@
 tasks/progress.md
 tasks/lessons.md
+examples/*/build/
+examples/*/Move.lock
