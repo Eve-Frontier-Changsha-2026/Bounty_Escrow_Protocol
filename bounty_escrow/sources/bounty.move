@@ -171,7 +171,7 @@ public fun create_bounty<T>(
     verifier_addr: address,
     clock: &Clock,
     ctx: &mut TxContext,
-): Coin<T> {
+): (Coin<T>, ID) {
     let now = sui::clock::timestamp_ms(clock);
     let sender = ctx.sender();
 
@@ -238,7 +238,7 @@ public fun create_bounty<T>(
     // --- Share bounty ---
     transfer::share_object(bounty);
 
-    change
+    (change, bounty_id)
 }
 
 public fun create<T>(
@@ -255,7 +255,7 @@ public fun create<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    let change = create_bounty(
+    let (change, _bounty_id) = create_bounty(
         title, description, coin,
         reward_amount, required_stake, max_claims,
         deadline, grace_period, cleanup_reward_bps,
