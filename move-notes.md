@@ -1,6 +1,38 @@
 # Move Notes — Bounty Escrow Protocol
 
-## 2026-03-21: create_bounty<T> composability fix
+## 2026-03-21: Testnet v2 Upgrade — ABI-compatible refactor
+
+**Commit:** `a3a1639`
+**Tx Digest:** `DXG8vQMjqSfGqQHFZZ1rv5xS7w9fBpDcpyXKnjNUCHVK`
+
+**目的：** 將所有 red team 修復 + composability 功能升級到 testnet。v1 的 `create_bounty<T>` 回傳 `(Coin<T>, ID)` 破壞 ABI 相容性，需重構。
+
+**改動：** `bounty.move` — 三層結構：
+- `create_bounty<T>` — 恢復 v1 signature，回傳 `Coin<T>`（ABI-compatible）
+- `create_bounty_with_id<T>` — 新增，回傳 `(Coin<T>, ID)` for PTB composability
+- `create_bounty_internal<T>` — private fun，共用核心邏輯
+
+**部署資訊：**
+| 欄位 | 值 |
+|------|-----|
+| Network | testnet (chain-id: 4c78adac) |
+| Original Package | `0x8222b1e623985cf9ef25d6d60f8a812c24fb0ac81f8ab6db6929bde273e6cb16` |
+| v2 Package | `0x573d1c2f5a1ebd61aa178452887c6c2c4c9605556a6e9bbca54c543091651bcb` |
+| UpgradeCap | `0x10e4164c6dae28a5a861865852c794c462f1085bf277219a4e7eac47bcc8b7e9` |
+| Gas Used | ~0.097 SUI |
+
+**包含的安全修復（from red team）：**
+- min_grace_period 驗證（1hr）
+- approved hunter cancel penalty = reward_amount
+- cancel_bounty escrow 區分 approved/unapproved penalty
+
+**測試：** 97 tests all passed。
+
+**已知風險：** 無。upgrade policy 維持 compatible。
+
+---
+
+## 2026-03-21: create_bounty<T> composability fix (superseded by v2 upgrade)
 
 **Commit:** `5de24f9`
 
