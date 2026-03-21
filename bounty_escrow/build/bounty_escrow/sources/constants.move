@@ -16,6 +16,7 @@ public fun max_metadata_entries(): u64 { 20 }
 public fun max_metadata_value_length(): u64 { 1024 }
 public fun min_deadline_duration(): u64 { 3_600_000 }
 public fun max_deadline_duration(): u64 { 31_536_000_000 }
+public fun min_grace_period(): u64 { 3_600_000 }
 public fun default_grace_period(): u64 { 86_400_000 }
 public fun current_version(): u64 { 1 }
 
@@ -55,3 +56,4 @@ public fun e_too_many_metadata(): u64 { 31 }
 public fun e_metadata_value_too_long(): u64 { 32 }
 public fun e_already_approved(): u64 { 33 }
 public fun e_overflow(): u64 { 34 }
+public fun e_grace_period_too_short(): u64 { 35 }

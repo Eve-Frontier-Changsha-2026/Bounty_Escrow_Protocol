@@ -174,6 +174,41 @@ fun test_create_bps_too_high() {
 }
 
 #[test]
+#[expected_failure(abort_code = 35)]
+fun test_create_grace_period_too_short() {
+    let mut scenario = ts::begin(CREATOR);
+    let mut clock = setup(&mut scenario);
+    let coin = coin::mint_for_testing<SUI>(5000, ts::ctx(&mut scenario));
+    // grace_period = 3_599_999 (1ms below min_grace_period of 3_600_000)
+    bounty::create<SUI>(
+        b"Test".to_string(), b"desc".to_string(), coin,
+        1000, 100, 5, 1_000_000_000 + 86_400_000, 3_599_999, 100,
+        VERIFIER, &clock, ts::ctx(&mut scenario),
+    );
+    clock::destroy_for_testing(clock);
+    ts::end(scenario);
+}
+
+#[test]
+fun test_create_grace_period_exact_min() {
+    let mut scenario = ts::begin(CREATOR);
+    let mut clock = setup(&mut scenario);
+    let coin = coin::mint_for_testing<SUI>(5000, ts::ctx(&mut scenario));
+    // grace_period = 3_600_000 (exactly min_grace_period) → should succeed
+    bounty::create<SUI>(
+        b"Test".to_string(), b"desc".to_string(), coin,
+        1000, 100, 5, 1_000_000_000 + 86_400_000, 3_600_000, 100,
+        VERIFIER, &clock, ts::ctx(&mut scenario),
+    );
+    ts::next_tx(&mut scenario, CREATOR);
+    let bounty = ts::take_shared<Bounty<SUI>>(&scenario);
+    assert!(bounty::grace_period(&bounty) == 3_600_000);
+    ts::return_shared(bounty);
+    clock::destroy_for_testing(clock);
+    ts::end(scenario);
+}
+
+#[test]
 fun test_create_change_returned() {
     let mut scenario = ts::begin(CREATOR);
     let mut clock = setup(&mut scenario);

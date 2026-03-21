@@ -199,6 +199,62 @@ fun test_withdraw_remaining_before_all_hunters_fails() {
 }
 
 #[test]
+fun test_withdraw_penalty_approved_hunter_gets_full_reward() {
+    // Approved hunter should receive reward_amount (not just required_stake) on cancel
+    let mut scenario = ts::begin(CREATOR);
+    let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
+    clock::set_for_testing(&mut clock, BASE_TIME);
+
+    // reward=1000, stake=100, max_claims=2
+    let mut bounty = setup_bounty(&mut scenario, &clock, 1000, 100, 2);
+
+    // HUNTER1 claims
+    ts::next_tx(&mut scenario, HUNTER1);
+    let stake1 = coin::mint_for_testing<SUI>(100, ts::ctx(&mut scenario));
+    bounty::claim<SUI>(&mut bounty, stake1, &clock, ts::ctx(&mut scenario));
+
+    // HUNTER2 claims
+    ts::next_tx(&mut scenario, HUNTER2);
+    let stake2 = coin::mint_for_testing<SUI>(100, ts::ctx(&mut scenario));
+    bounty::claim<SUI>(&mut bounty, stake2, &clock, ts::ctx(&mut scenario));
+
+    // Verifier approves HUNTER1
+    ts::next_tx(&mut scenario, VERIFIER);
+    let cap = ts::take_from_sender<VerifierCap>(&scenario);
+    bounty::approve<SUI>(&mut bounty, HUNTER1, &cap, &clock, ts::ctx(&mut scenario));
+    ts::return_to_sender(&scenario, cap);
+
+    // Creator cancels — HUNTER1 is approved, HUNTER2 is not
+    ts::next_tx(&mut scenario, CREATOR);
+    bounty::cancel<SUI>(&mut bounty, ts::ctx(&mut scenario));
+    assert!(bounty::status(&bounty) == constants::status_cancelled());
+
+    // escrow before withdrawals: 2000 (2 * reward)
+    // HUNTER1 (approved) withdraws: gets stake(100) + reward_amount(1000)
+    ts::next_tx(&mut scenario, HUNTER1);
+    let ticket1 = ts::take_from_sender<ClaimTicket>(&scenario);
+    bounty::withdraw_penalty<SUI>(&mut bounty, ticket1, ts::ctx(&mut scenario));
+
+    // HUNTER2 (not approved) withdraws: gets stake(100) + required_stake(100)
+    ts::next_tx(&mut scenario, HUNTER2);
+    let ticket2 = ts::take_from_sender<ClaimTicket>(&scenario);
+    bounty::withdraw_penalty<SUI>(&mut bounty, ticket2, ts::ctx(&mut scenario));
+
+    // Creator withdraws remaining: escrow had 2000, paid 1000+100 = 1100 from escrow
+    // remaining escrow = 2000 - 1000 - 100 = 900
+    ts::next_tx(&mut scenario, CREATOR);
+    bounty::withdraw_remaining<SUI>(&mut bounty, ts::ctx(&mut scenario));
+
+    ts::next_tx(&mut scenario, CREATOR);
+    assert!(bounty::escrow_value(&bounty) == 0);
+    assert!(bounty::stake_pool_value(&bounty) == 0);
+
+    ts::return_shared(bounty);
+    clock::destroy_for_testing(clock);
+    ts::end(scenario);
+}
+
+#[test]
 #[expected_failure(abort_code = 14)]
 fun test_double_cancel_fails() {
     let mut scenario = ts::begin(CREATOR);

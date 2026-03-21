@@ -158,7 +158,54 @@ fun is_terminal(status: u8): bool {
 
 // === Create ===
 
+/// Original v1 signature — returns only change coin (ABI-compatible).
 public fun create_bounty<T>(
+    title: String,
+    description: String,
+    coin: Coin<T>,
+    reward_amount: u64,
+    required_stake: u64,
+    max_claims: u64,
+    deadline: u64,
+    grace_period: u64,
+    cleanup_reward_bps: u16,
+    verifier_addr: address,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): Coin<T> {
+    let (change, _id) = create_bounty_internal(
+        title, description, coin,
+        reward_amount, required_stake, max_claims,
+        deadline, grace_period, cleanup_reward_bps,
+        verifier_addr, clock, ctx,
+    );
+    change
+}
+
+/// Composable version — returns (Coin<T>, ID) for PTB integration.
+public fun create_bounty_with_id<T>(
+    title: String,
+    description: String,
+    coin: Coin<T>,
+    reward_amount: u64,
+    required_stake: u64,
+    max_claims: u64,
+    deadline: u64,
+    grace_period: u64,
+    cleanup_reward_bps: u16,
+    verifier_addr: address,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): (Coin<T>, ID) {
+    create_bounty_internal(
+        title, description, coin,
+        reward_amount, required_stake, max_claims,
+        deadline, grace_period, cleanup_reward_bps,
+        verifier_addr, clock, ctx,
+    )
+}
+
+fun create_bounty_internal<T>(
     title: String,
     description: String,
     coin: Coin<T>,
@@ -185,6 +232,7 @@ public fun create_bounty<T>(
     assert!(cleanup_reward_bps <= constants::max_cleanup_reward_bps(), constants::e_cleanup_bps_too_high());
     assert!(deadline >= now + constants::min_deadline_duration(), constants::e_deadline_too_soon());
     assert!(deadline <= now + constants::max_deadline_duration(), constants::e_deadline_too_far());
+    assert!(grace_period >= constants::min_grace_period(), constants::e_grace_period_too_short());
 
     let total_escrow = checked_mul(reward_amount, max_claims);
     assert!(coin::value(&coin) >= total_escrow, constants::e_insufficient_escrow());
@@ -255,7 +303,7 @@ public fun create<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    let (change, _bounty_id) = create_bounty(
+    let change = create_bounty(
         title, description, coin,
         reward_amount, required_stake, max_claims,
         deadline, grace_period, cleanup_reward_bps,
@@ -511,7 +559,11 @@ public fun cancel_bounty<T>(
             penalty_per_hunter: 0,
         });
     } else {
-        let total_penalty = checked_mul(bounty.required_stake, bounty.active_claims);
+        let approved_count = vec_set::length(&bounty.approved_hunters);
+        let unapproved_count = bounty.active_claims - approved_count;
+        let approved_penalty = checked_mul(bounty.reward_amount, approved_count);
+        let unapproved_penalty = checked_mul(bounty.required_stake, unapproved_count);
+        let total_penalty = approved_penalty + unapproved_penalty;
         assert!(balance::value(&bounty.escrow) >= total_penalty,
             constants::e_insufficient_escrow_for_penalty());
         bounty.status = constants::status_cancelled();
@@ -547,7 +599,8 @@ public fun withdraw_penalty_bounty<T>(
     assert!(vec_map::contains(&bounty.active_hunter_stakes, &hunter), constants::e_hunter_not_active());
 
     let stake_amount = ticket.stake_amount;
-    let penalty = bounty.required_stake;
+    let is_approved = vec_set::contains(&bounty.approved_hunters, &hunter);
+    let penalty = if (is_approved) { bounty.reward_amount } else { bounty.required_stake };
 
     if (stake_amount > 0) {
         escrow::release_to(&mut bounty.stake_pool, stake_amount, hunter, ctx);
@@ -559,7 +612,7 @@ public fun withdraw_penalty_bounty<T>(
     let (_, _) = vec_map::remove(&mut bounty.active_hunter_stakes, &hunter);
     bounty.active_claims = bounty.active_claims - 1;
 
-    if (vec_set::contains(&bounty.approved_hunters, &hunter)) {
+    if (is_approved) {
         vec_set::remove(&mut bounty.approved_hunters, &hunter);
     };
 
