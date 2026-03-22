@@ -1,5 +1,34 @@
 # Move Notes — Bounty Escrow Protocol
 
+## 2026-03-23: Testnet v3 Upgrade — Dispute Resolution
+
+**Tx Digest:** `FexXFYE6Np4zF2wjWrzGWmRNpjs21syDbBFW3uDuQ9iR`
+
+**目的：** 部署 Dispute Resolution v3（proof submission + dispute + auto-approve）到 testnet。
+
+**部署資訊：**
+| 欄位 | 值 |
+|------|-----|
+| Network | testnet (epoch 1046) |
+| Original Package | `0x8222b1e623985cf9ef25d6d60f8a812c24fb0ac81f8ab6db6929bde273e6cb16` |
+| v2 Package | `0x573d1c2f5a1ebd61aa178452887c6c2c4c9605556a6e9bbca54c543091651bcb` |
+| v3 Package | `0x76b952d0acf15742daadb76f6b1921442bafbd8201d5449d2e0a73056a7df39c` |
+| UpgradeCap | `0x10e4164c6dae28a5a861865852c794c462f1085bf277219a4e7eac47bcc8b7e9` |
+| Modules | bounty, constants, display, escrow, verifier |
+| Gas Used | ~0.139 SUI |
+
+**v3 新增功能：**
+- 7 new entry functions: set_review_period, submit_proof, reject_proof, resubmit_proof, dispute_rejection, resolve_dispute, auto_approve_proof
+- Dynamic field 擴展（ProofKey + ReviewConfigKey），ABI-compatible
+- 16 new error codes (36-51), 6 proof status codes (10-15)
+- Red team v2 suspicious fixes（deadline check on dispute, abandon DF cleanup）
+
+**測試：** 131 tests all passed。
+
+**已知風險：** 無。upgrade policy 維持 compatible。
+
+---
+
 ## 2026-03-21: Testnet v2 Upgrade — ABI-compatible refactor
 
 **Commit:** `a3a1639`
@@ -111,3 +140,47 @@
 **測試：** 97 tests all passed（+3 new: grace_period boundary tests + approved-penalty withdrawal test）。2 個 red team test 更新為 `expected_failure`。
 
 **已知風險：** 無。cancel+zero-stake 非 approved hunter 不額外處理（前端警示即可）。
+
+---
+
+## 2026-03-23: Red Team v2 — Dispute Functions (10 rounds, 46 attack tests)
+
+**目的：** 對 Dispute Resolution v3 的 7 個新 entry function 進行對抗性安全測試。
+
+**結果：** 0 exploits / 2 suspicious / 44 defended (confidence 70%)
+
+**測試檔案：** `tests/red-team/red_team_round_{11-20}_*.move`，測試後刪除（原 131 tests 不受影響）。全套 177 tests passed。
+
+### 攻擊覆蓋
+
+| Round | Category | Tests | Result |
+|-------|----------|-------|--------|
+| 11 | Access Control（dispute functions） | 6 | DEFENDED |
+| 12 | Timing（review window manipulation） | 7 | 5 DEFENDED + 2 SUSPICIOUS |
+| 13 | State Machine（invalid proof transitions） | 6 | DEFENDED |
+| 14 | Economic（double approve via legacy+proof） | 4 | DEFENDED |
+| 15 | Input Fuzzing（proof/reason fields） | 5 | DEFENDED |
+| 16 | Ordering（cancel/expire during proof flow） | 4 | 3 DEFENDED + 1 SUSPICIOUS |
+| 17 | DoS（grief via proof system） | 3 | DEFENDED |
+| 18 | Combo（legacy approve + dispute） | 3 | DEFENDED |
+| 19 | Combo（multi-hunter isolation） | 2 | DEFENDED |
+| 20 | Combo（full lifecycle edge cases） | 6 | DEFENDED |
+
+### Suspicious 設計問題（已修復 2026-03-23）
+
+1. **`dispute_rejection` 無 deadline 檢查** — ✅ 已修復
+   - 加 `assert!(now < bounty.deadline + bounty.grace_period, e_deadline_passed())`
+   - 過期後不能發起新 dispute
+
+2. **`abandon` 後 ProofSubmission dynamic field 孤立** — ✅ 已修復
+   - `abandon_bounty` 中加 `dynamic_field::remove<ProofKey, ProofSubmission>` 清理
+   - 測試 `test_abandon_with_pending_proof` 更新為驗證 DF 已清理
+
+### 防禦確認（重點）
+
+- **Access Control:** resolve_dispute 只有 creator 能呼叫（非 verifier、非 hunter、非第三方）。submit_proof / dispute_rejection / auto_approve_proof / resubmit_proof 只有 hunter 本人。reject_proof 需要 VerifierCap。
+- **State Machine:** proof status 轉換嚴格：submitted→rejected→(resubmit→submitted | dispute→disputed→resolved)。無法跳狀態。
+- **Economic:** legacy `approve_hunter` + proof system 的 `auto_approve_proof` 不會 double-approve（`e_already_auto_approved` / `e_already_approved` 交叉防護）。`resolve_dispute(approve)` 正確加入 `approved_hunters`。
+- **Timing:** `reject_proof` 有 review window 限制，`auto_approve_proof` 要求 review period expired。`resubmit_proof` 正確重置 `submitted_at`。
+- **Input:** 所有 string field（proof_url, proof_description, reason）有 empty + max_length 驗證。
+- **Multi-hunter:** ProofKey 以 hunter address 為 key，不同 hunter 的 proof 完全隔離。

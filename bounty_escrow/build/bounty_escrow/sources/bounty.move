@@ -10,6 +10,7 @@ use sui::vec_map::{Self, VecMap};
 use bounty_escrow::constants;
 use bounty_escrow::escrow;
 use bounty_escrow::verifier::{Self, VerifierCap};
+use sui::dynamic_field;
 
 // === Structs ===
 
@@ -42,6 +43,29 @@ public struct ClaimTicket has key {
     hunter: address,
     stake_amount: u64,
     claimed_at: u64,
+}
+
+// === Dynamic Field Keys ===
+
+public struct ProofKey has copy, drop, store { hunter: address }
+public struct ReviewConfigKey has copy, drop, store {}
+
+// === Dynamic Field Values ===
+
+public struct ProofSubmission has store, drop {
+    proof_url: String,
+    proof_description: String,
+    submitted_at: u64,
+    status: u8,
+    rejection_reason: String,
+    dispute_reason: String,
+    resolved_by: address,
+    resolved_at: u64,
+    has_resubmitted: bool,
+}
+
+public struct ReviewConfig has store, drop {
+    review_period_ms: u64,
 }
 
 // === Events ===
@@ -125,6 +149,49 @@ public struct VerifierCapDestroyed has copy, drop {
     cap_id: ID,
 }
 
+public struct ProofSubmittedEvent has copy, drop {
+    bounty_id: ID,
+    hunter: address,
+    proof_url: String,
+    submitted_at: u64,
+}
+
+public struct ProofRejectedEvent has copy, drop {
+    bounty_id: ID,
+    hunter: address,
+    verifier: address,
+    reason: String,
+    rejected_at: u64,
+}
+
+public struct ProofResubmittedEvent has copy, drop {
+    bounty_id: ID,
+    hunter: address,
+    proof_url: String,
+    resubmitted_at: u64,
+}
+
+public struct DisputeRaisedEvent has copy, drop {
+    bounty_id: ID,
+    hunter: address,
+    reason: String,
+    disputed_at: u64,
+}
+
+public struct DisputeResolvedEvent has copy, drop {
+    bounty_id: ID,
+    hunter: address,
+    resolved_by: address,
+    approved: bool,
+    resolved_at: u64,
+}
+
+public struct ProofAutoApprovedEvent has copy, drop {
+    bounty_id: ID,
+    hunter: address,
+    approved_at: u64,
+}
+
 // === Accessors ===
 
 public fun status<T>(bounty: &Bounty<T>): u8 { bounty.status }
@@ -154,6 +221,14 @@ fun is_terminal(status: u8): bool {
     status == constants::status_completed() ||
     status == constants::status_cancelled() ||
     status == constants::status_expired()
+}
+
+fun get_review_period<T>(bounty: &Bounty<T>): u64 {
+    if (dynamic_field::exists_(&bounty.id, ReviewConfigKey {})) {
+        dynamic_field::borrow<ReviewConfigKey, ReviewConfig>(&bounty.id, ReviewConfigKey {}).review_period_ms
+    } else {
+        constants::default_review_period()
+    }
 }
 
 // === Create ===
@@ -516,6 +591,11 @@ public fun abandon_bounty<T>(
         vec_set::remove(&mut bounty.approved_hunters, &hunter);
     };
 
+    // Clean up orphaned ProofSubmission if exists
+    if (dynamic_field::exists_(&bounty.id, ProofKey { hunter })) {
+        dynamic_field::remove<ProofKey, ProofSubmission>(&mut bounty.id, ProofKey { hunter });
+    };
+
     resolve_claim(bounty, hunter, false);
 
     event::emit(BountyAbandoned {
@@ -777,4 +857,290 @@ public fun destroy_verifier_cap<T>(
     bounty: &Bounty<T>,
 ) {
     destroy_verifier_cap_bounty(cap, bounty);
+}
+
+// === Review Period Config ===
+
+public fun set_review_period<T>(
+    bounty: &mut Bounty<T>,
+    review_period_ms: u64,
+    ctx: &mut TxContext,
+) {
+    let sender = ctx.sender();
+    assert!(sender == bounty.creator, constants::e_not_creator());
+    assert!(bounty.status == constants::status_open(), constants::e_bounty_not_open());
+    assert!(bounty.active_claims == 0, constants::e_hunter_not_claimed());
+    assert!(review_period_ms >= constants::min_review_period(), constants::e_invalid_review_period());
+    assert!(review_period_ms <= constants::max_review_period(), constants::e_invalid_review_period());
+
+    let key = ReviewConfigKey {};
+    if (dynamic_field::exists_(&bounty.id, key)) {
+        let config = dynamic_field::borrow_mut<ReviewConfigKey, ReviewConfig>(&mut bounty.id, key);
+        config.review_period_ms = review_period_ms;
+    } else {
+        dynamic_field::add(&mut bounty.id, key, ReviewConfig { review_period_ms });
+    };
+}
+
+// === Proof Accessors ===
+
+public fun has_proof<T>(bounty: &Bounty<T>, hunter: address): bool {
+    dynamic_field::exists_(&bounty.id, ProofKey { hunter })
+}
+
+public fun proof_status<T>(bounty: &Bounty<T>, hunter: address): u8 {
+    assert!(dynamic_field::exists_(&bounty.id, ProofKey { hunter }), constants::e_no_proof_submitted());
+    dynamic_field::borrow<ProofKey, ProofSubmission>(&bounty.id, ProofKey { hunter }).status
+}
+
+public fun review_period<T>(bounty: &Bounty<T>): u64 {
+    get_review_period(bounty)
+}
+
+// === Submit Proof ===
+
+public fun submit_proof<T>(
+    bounty: &mut Bounty<T>,
+    proof_url: String,
+    proof_description: String,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let hunter = ctx.sender();
+    let bounty_id = object::id(bounty);
+
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    assert!(vec_map::contains(&bounty.active_hunter_stakes, &hunter), constants::e_hunter_not_claimed());
+    assert!(!vec_set::contains(&bounty.approved_hunters, &hunter), constants::e_already_approved());
+    assert!(!dynamic_field::exists_(&bounty.id, ProofKey { hunter }), constants::e_proof_already_submitted());
+    assert!(now < bounty.deadline, constants::e_deadline_passed());
+    assert!(proof_url.length() > 0, constants::e_proof_url_empty());
+    assert!(proof_url.length() <= constants::max_proof_url_length(), constants::e_proof_url_too_long());
+    assert!(proof_description.length() <= constants::max_proof_description_length(), constants::e_description_too_long());
+
+    let submission = ProofSubmission {
+        proof_url,
+        proof_description,
+        submitted_at: now,
+        status: constants::proof_submitted(),
+        rejection_reason: std::string::utf8(b""),
+        dispute_reason: std::string::utf8(b""),
+        resolved_by: @0x0,
+        resolved_at: 0,
+        has_resubmitted: false,
+    };
+
+    dynamic_field::add(&mut bounty.id, ProofKey { hunter }, submission);
+
+    let event_url = dynamic_field::borrow<ProofKey, ProofSubmission>(&bounty.id, ProofKey { hunter }).proof_url;
+    event::emit(ProofSubmittedEvent {
+        bounty_id,
+        hunter,
+        proof_url: event_url,
+        submitted_at: now,
+    });
+}
+
+// === Reject Proof ===
+
+public fun reject_proof<T>(
+    bounty: &mut Bounty<T>,
+    hunter: address,
+    reason: String,
+    cap: &VerifierCap,
+    clock: &Clock,
+    _ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let bounty_id = object::id(bounty);
+
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    verifier::validate_cap(cap, bounty_id);
+    assert!(dynamic_field::exists_(&bounty.id, ProofKey { hunter }), constants::e_no_proof_submitted());
+    assert!(reason.length() > 0, constants::e_rejection_reason_empty());
+    assert!(reason.length() <= constants::max_reason_length(), constants::e_reason_too_long());
+
+    // Read review period before mutable borrow
+    let rp = get_review_period(bounty);
+
+    let submission = dynamic_field::borrow_mut<ProofKey, ProofSubmission>(&mut bounty.id, ProofKey { hunter });
+    assert!(submission.status == constants::proof_submitted(), constants::e_proof_not_submitted());
+    assert!(now <= submission.submitted_at + rp, constants::e_review_window_expired());
+
+    submission.status = constants::proof_rejected();
+    submission.rejection_reason = reason;
+    submission.resolved_by = _ctx.sender();
+    submission.resolved_at = now;
+
+    let event_reason = submission.rejection_reason;
+    event::emit(ProofRejectedEvent {
+        bounty_id,
+        hunter,
+        verifier: _ctx.sender(),
+        reason: event_reason,
+        rejected_at: now,
+    });
+}
+
+// === Resubmit Proof ===
+
+public fun resubmit_proof<T>(
+    bounty: &mut Bounty<T>,
+    proof_url: String,
+    proof_description: String,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let hunter = ctx.sender();
+    let bounty_id = object::id(bounty);
+
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    assert!(dynamic_field::exists_(&bounty.id, ProofKey { hunter }), constants::e_no_proof_submitted());
+    assert!(now < bounty.deadline, constants::e_deadline_passed());
+    assert!(proof_url.length() > 0, constants::e_proof_url_empty());
+    assert!(proof_url.length() <= constants::max_proof_url_length(), constants::e_proof_url_too_long());
+    assert!(proof_description.length() <= constants::max_proof_description_length(), constants::e_description_too_long());
+
+    let submission = dynamic_field::borrow_mut<ProofKey, ProofSubmission>(&mut bounty.id, ProofKey { hunter });
+    assert!(submission.status == constants::proof_rejected(), constants::e_proof_not_rejected());
+    assert!(!submission.has_resubmitted, constants::e_resubmit_exhausted());
+
+    submission.proof_url = proof_url;
+    submission.proof_description = proof_description;
+    submission.submitted_at = now;
+    submission.status = constants::proof_submitted();
+    submission.rejection_reason = std::string::utf8(b"");
+    submission.resolved_by = @0x0;
+    submission.resolved_at = 0;
+    submission.has_resubmitted = true;
+
+    let event_url = submission.proof_url;
+    event::emit(ProofResubmittedEvent {
+        bounty_id,
+        hunter,
+        proof_url: event_url,
+        resubmitted_at: now,
+    });
+}
+
+// === Dispute ===
+
+public fun dispute_rejection<T>(
+    bounty: &mut Bounty<T>,
+    reason: String,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let hunter = ctx.sender();
+    let bounty_id = object::id(bounty);
+
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    assert!(now < bounty.deadline + bounty.grace_period, constants::e_deadline_passed());
+    assert!(dynamic_field::exists_(&bounty.id, ProofKey { hunter }), constants::e_no_proof_submitted());
+    assert!(reason.length() > 0, constants::e_dispute_reason_empty());
+    assert!(reason.length() <= constants::max_reason_length(), constants::e_reason_too_long());
+
+    let submission = dynamic_field::borrow_mut<ProofKey, ProofSubmission>(&mut bounty.id, ProofKey { hunter });
+    assert!(submission.status == constants::proof_rejected(), constants::e_proof_not_rejected());
+
+    submission.status = constants::proof_disputed();
+    submission.dispute_reason = reason;
+    submission.resolved_by = @0x0;
+    submission.resolved_at = 0;
+
+    let event_reason = submission.dispute_reason;
+    event::emit(DisputeRaisedEvent {
+        bounty_id,
+        hunter,
+        reason: event_reason,
+        disputed_at: now,
+    });
+}
+
+// === Resolve Dispute ===
+
+public fun resolve_dispute<T>(
+    bounty: &mut Bounty<T>,
+    hunter: address,
+    approve: bool,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let sender = ctx.sender();
+    let bounty_id = object::id(bounty);
+
+    assert!(sender == bounty.creator, constants::e_not_creator());
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    assert!(dynamic_field::exists_(&bounty.id, ProofKey { hunter }), constants::e_no_proof_submitted());
+
+    let submission = dynamic_field::borrow_mut<ProofKey, ProofSubmission>(&mut bounty.id, ProofKey { hunter });
+    assert!(submission.status == constants::proof_disputed(), constants::e_proof_not_disputed());
+
+    submission.resolved_by = sender;
+    submission.resolved_at = now;
+
+    if (approve) {
+        submission.status = constants::proof_resolved_approved();
+    } else {
+        submission.status = constants::proof_resolved_rejected();
+    };
+
+    // Must drop mutable borrow before inserting into approved_hunters
+    if (approve) {
+        vec_set::insert(&mut bounty.approved_hunters, hunter);
+    };
+
+    event::emit(DisputeResolvedEvent {
+        bounty_id,
+        hunter,
+        resolved_by: sender,
+        approved: approve,
+        resolved_at: now,
+    });
+}
+
+// === Auto-Approve Proof ===
+
+public fun auto_approve_proof<T>(
+    bounty: &mut Bounty<T>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let hunter = ctx.sender();
+    let bounty_id = object::id(bounty);
+
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    assert!(dynamic_field::exists_(&bounty.id, ProofKey { hunter }), constants::e_no_proof_submitted());
+    assert!(!vec_set::contains(&bounty.approved_hunters, &hunter), constants::e_already_auto_approved());
+
+    // Read review period before mutable borrow
+    let rp = get_review_period(bounty);
+
+    let submission = dynamic_field::borrow_mut<ProofKey, ProofSubmission>(&mut bounty.id, ProofKey { hunter });
+    assert!(submission.status == constants::proof_submitted(), constants::e_proof_not_submitted());
+    assert!(now >= submission.submitted_at + rp, constants::e_review_period_not_expired());
+
+    submission.status = constants::proof_approved();
+    submission.resolved_by = hunter;
+    submission.resolved_at = now;
+
+    // Drop mutable borrow before vec_set insert
+    vec_set::insert(&mut bounty.approved_hunters, hunter);
+
+    event::emit(ProofAutoApprovedEvent {
+        bounty_id,
+        hunter,
+        approved_at: now,
+    });
 }

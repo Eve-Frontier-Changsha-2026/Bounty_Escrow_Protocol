@@ -57,3 +57,39 @@ public fun e_metadata_value_too_long(): u64 { 32 }
 public fun e_already_approved(): u64 { 33 }
 public fun e_overflow(): u64 { 34 }
 public fun e_grace_period_too_short(): u64 { 35 }
+
+// === Proof 狀態碼 ===
+public fun proof_submitted(): u8 { 10 }
+public fun proof_approved(): u8 { 11 }
+public fun proof_rejected(): u8 { 12 }
+public fun proof_disputed(): u8 { 13 }
+public fun proof_resolved_approved(): u8 { 14 }
+public fun proof_resolved_rejected(): u8 { 15 }
+
+// === Review period ===
+public fun default_review_period(): u64 { 259_200_000 }    // 3 days
+public fun min_review_period(): u64 { 3_600_000 }          // 1 hour
+public fun max_review_period(): u64 { 604_800_000 }        // 7 days
+
+// === Proof 上限 ===
+public fun max_proof_url_length(): u64 { 512 }
+public fun max_proof_description_length(): u64 { 2048 }
+public fun max_reason_length(): u64 { 1024 }
+
+// === Proof 錯誤碼 ===
+public fun e_proof_already_submitted(): u64 { 36 }
+public fun e_hunter_not_claimed(): u64 { 37 }
+public fun e_no_proof_submitted(): u64 { 38 }
+public fun e_proof_not_submitted(): u64 { 39 }
+public fun e_proof_not_rejected(): u64 { 40 }
+public fun e_proof_not_disputed(): u64 { 41 }
+public fun e_review_period_not_expired(): u64 { 42 }
+public fun e_already_auto_approved(): u64 { 43 }
+public fun e_invalid_review_period(): u64 { 44 }
+public fun e_proof_url_empty(): u64 { 45 }
+public fun e_proof_url_too_long(): u64 { 46 }
+public fun e_rejection_reason_empty(): u64 { 47 }
+public fun e_dispute_reason_empty(): u64 { 48 }
+public fun e_resubmit_exhausted(): u64 { 49 }
+public fun e_reason_too_long(): u64 { 50 }
+public fun e_review_window_expired(): u64 { 51 }
