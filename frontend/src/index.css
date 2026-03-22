@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@theme {
+  /* EVE Frontier Colors */
+  --color-eve-bg: #040912;
+  --color-eve-bg-2: #081629;
+  --color-eve-text: #eef4ff;
+  --color-eve-sub: #a2b5da;
+  --color-eve-gold: #f0ce83;
+  --color-eve-cyan: #66cbff;
+  --color-eve-line: rgba(138, 181, 255, 0.18);
+  --color-eve-panel: rgba(9, 20, 40, 0.68);
+  --color-eve-panel-border: rgba(156, 191, 255, 0.3);
+  --color-eve-danger: #ff6b6b;
+  --color-eve-success: #4ade80;
+
+  /* Status Colors */
+  --color-status-open: #66cbff;
+  --color-status-claimed: #f0ce83;
+  --color-status-completed: #4ade80;
+  --color-status-cancelled: #ff6b6b;
+  --color-status-expired: #6b7280;
+
+  /* Fonts */
+  --font-heading: "Orbitron", sans-serif;
+  --font-body: "Exo 2", sans-serif;
+}
+
+/* ── Base ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--color-eve-text);
+  background: radial-gradient(1200px 600px at 70% -20%, #1b3e73 0%, var(--color-eve-bg) 70%),
+    linear-gradient(180deg, #050a15 0%, #040811 100%);
+  min-height: 100vh;
+}
+
+/* ── Grid Overlay ── */
+.grid-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: linear-gradient(var(--color-eve-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-eve-line) 1px, transparent 1px);
+  background-size: 54px 54px;
+  opacity: 0.2;
+}
+
+/* ── Glassmorphism Panel ── */
+.eve-panel {
+  background: var(--color-eve-panel);
+  border: 1px solid var(--color-eve-panel-border);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* ── Primary Button ── */
+.btn-primary {
+  color: #081123;
+  font-weight: 700;
+  background: linear-gradient(130deg, #6ad1ff 0%, #f7cf87 100%);
+  box-shadow: 0 0 22px rgba(103, 203, 255, 0.5), inset 0 0 18px rgba(255, 255, 255, 0.35);
+  transition: all 0.26s ease;
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 36px rgba(113, 211, 255, 0.78), inset 0 0 18px rgba(255, 255, 255, 0.35);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Secondary Button ── */
+.btn-secondary {
+  color: #d8e7ff;
+  background: rgba(15, 36, 70, 0.5);
+  border: 1px solid rgba(152, 188, 255, 0.44);
+  transition: all 0.26s ease;
+}
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: rgba(24, 53, 98, 0.68);
+}
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Danger Button ── */
+.btn-danger {
+  color: #ffeaea;
+  background: rgba(70, 15, 15, 0.5);
+  border: 1px solid rgba(255, 107, 107, 0.44);
+  transition: all 0.26s ease;
+}
+.btn-danger:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: rgba(98, 24, 24, 0.68);
+}
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Vignette ── */
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle at 50% 30%, transparent 25%, rgba(1, 5, 12, 0.75) 100%);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-eve-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 191, 255, 0.3);
+  border-radius: 3px;
+}
