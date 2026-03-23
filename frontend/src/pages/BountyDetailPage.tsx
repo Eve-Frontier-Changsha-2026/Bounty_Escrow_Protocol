@@ -25,7 +25,7 @@ export function BountyDetailPage() {
   const account = useCurrentAccount();
   const { data: bounty, isLoading, error } = useBountyDetail(bountyId);
   const { isCreator, isVerifier, ticket, verifierCap } = useUserRole(bounty);
-  const { data: proof } = useProofSubmission(bountyId, account?.address);
+  const { data: proof, error: proofError } = useProofSubmission(bountyId, account?.address);
   const { data: reviewPeriodMs } = useReviewConfig(bountyId);
   const [toast, setToast] = useState<Toast | null>(null);
 
@@ -120,9 +120,31 @@ export function BountyDetailPage() {
         )}
       </Panel>
 
+      {/* Claimed Hunters */}
+      {bounty.hunters.length > 0 && (
+        <Panel className="mb-4">
+          <h2 className="font-heading text-xs text-eve-gold tracking-wider mb-3">CLAIMED HUNTERS</h2>
+          <div className="space-y-1">
+            {bounty.hunters.map(h => (
+              <div key={h} className="flex items-center gap-2 text-xs font-mono">
+                <span className={h === account?.address ? 'text-eve-cyan' : 'text-eve-sub'}>
+                  {truncateAddress(h)}
+                </span>
+                {h === account?.address && <span className="text-eve-gold text-[10px]">(you)</span>}
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
       {/* Proof Status */}
       {proof && (
         <ProofStatusPanel proof={proof} reviewPeriodMs={effectiveReviewPeriod} />
+      )}
+      {proofError && (
+        <Panel className="mb-4 border-eve-danger/50">
+          <p className="text-xs text-eve-danger">Proof query error: {String(proofError)}</p>
+        </Panel>
       )}
 
       {/* Details */}

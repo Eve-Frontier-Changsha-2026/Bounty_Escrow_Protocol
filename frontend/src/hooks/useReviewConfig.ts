@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { jsonRpcClient } from '../lib/rpc';
-import { ORIGINAL_PACKAGE_ID } from '../config/contracts';
+import { PACKAGE_ID } from '../config/contracts';
 import { LIMITS } from '../lib/constants';
 
 export function useReviewConfig(bountyId: string | undefined) {
@@ -10,7 +10,7 @@ export function useReviewConfig(bountyId: string | undefined) {
       const result = await jsonRpcClient.getDynamicFieldObject({
         parentId: bountyId!,
         name: {
-          type: `${ORIGINAL_PACKAGE_ID}::bounty::ReviewConfigKey`,
+          type: `${PACKAGE_ID}::bounty::ReviewConfigKey`,
           value: {},
         },
       });

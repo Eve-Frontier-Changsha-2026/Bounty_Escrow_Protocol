@@ -20,6 +20,12 @@ export function useBountyDetail(bountyId: string | undefined) {
       const coinTypeMatch = typeStr.match(/<(.+)>/);
       const coinType = coinTypeMatch?.[1] ?? '0x2::sui::SUI';
 
+      // Parse active_hunter_stakes VecMap → array of hunter addresses
+      const hunterStakes = fields.active_hunter_stakes as { fields?: { contents?: Array<{ fields?: { key?: string } }> } } | undefined;
+      const hunters: string[] = (hunterStakes?.fields?.contents ?? [])
+        .map(entry => entry.fields?.key ?? '')
+        .filter(Boolean);
+
       return {
         id: result.data.objectId,
         version: Number(fields.version ?? 0),
@@ -38,6 +44,7 @@ export function useBountyDetail(bountyId: string | undefined) {
         activeClaims: Number(fields.active_claims ?? 0),
         completedClaims: Number(fields.completed_claims ?? 0),
         coinType,
+        hunters,
       } satisfies ParsedBounty;
     },
     enabled: !!bountyId,

@@ -14,7 +14,17 @@
       "Bash(find /Users/ramonliao/Documents/Code/Project/Web3/Hackathon/2026_HoH_SUI_HackerHouse_Changsha/EVE_Frontier/build/projects/Fleet_Command_Doctrine -maxdepth 3 -type f \\\\\\(-name *.md -o -name *.move -o -name Move.toml \\\\\\))",
       "Bash(/dev/null echo:*)",
       "Bash(git push:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(find /Users/ramonliao/Documents/Code/Project/Web3/Hackathon/2026_HoH_SUI_HackerHouse_Changsha/EVE_Frontier/build/projects -maxdepth 4 \\\\\\(-name *.css -o -name *.scss -o -name tailwind* -o -name .tailwind* \\\\\\) -not -path */node_modules/* -type f)",
+      "Bash(find /Users/ramonliao/Documents/Code/Project/Web3/Hackathon/2026_HoH_SUI_HackerHouse_Changsha/EVE_Frontier/build/projects -maxdepth 4 -name *.config.ts -o -name *.config.js -not -path */node_modules/*)",
+      "Bash(find /Users/ramonliao/Documents/Code/Project/Web3/Hackathon/2026_HoH_SUI_HackerHouse_Changsha/EVE_Frontier/eve-vault-chrome -maxdepth 3 \\\\\\(-name *.css -o -name *.scss -o -name tailwind* -o -name *.json \\\\\\) -type f)",
+      "Bash(find /Users/ramonliao/Documents/Code/Project/Web3/Hackathon/2026_HoH_SUI_HackerHouse_Changsha/EVE_Frontier/build -name *.md -type f)",
+      "Bash(grep -r \"@evefrontier\\\\|evefrontier\" /Users/ramonliao/Documents/Code/Project/Web3/Hackathon/2026_HoH_SUI_HackerHouse_Changsha/EVE_Frontier/build/projects --include=*.json --include=*.ts --include=*.tsx -l)",
+      "Bash(rm -f src/App.css src/assets/react.svg)",
+      "Bash(mkdir -p src/config src/lib/ptb src/hooks src/components/layout src/components/bounty src/components/actions src/components/ui src/pages)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(grep -rn \"queryEvents\\\\|listEvents\\\\|getEvents\" /Users/ramonliao/Documents/Code/Project/Web3/Hackathon/2026_HoH_SUI_HackerHouse_Changsha/EVE_Frontier/build/projects/Bounty_Escrow_Protocol/frontend/node_modules/@mysten/sui/dist/grpc/*.mjs)",
+      "Bash(python3 -m json.tool)"
     ]
   },
   "enabledPlugins": {

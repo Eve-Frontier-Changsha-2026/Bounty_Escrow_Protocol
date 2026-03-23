@@ -16,6 +16,7 @@ export interface ParsedBounty {
   activeClaims: number;
   completedClaims: number;
   coinType: string;
+  hunters: string[];
 }
 
 export interface ParsedClaimTicket {
