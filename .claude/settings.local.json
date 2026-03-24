@@ -24,7 +24,8 @@
       "Bash(mkdir -p src/config src/lib/ptb src/hooks src/components/layout src/components/bounty src/components/actions src/components/ui src/pages)",
       "Bash(echo \"EXIT: $?\")",
       "Bash(grep -rn \"queryEvents\\\\|listEvents\\\\|getEvents\" /Users/ramonliao/Documents/Code/Project/Web3/Hackathon/2026_HoH_SUI_HackerHouse_Changsha/EVE_Frontier/build/projects/Bounty_Escrow_Protocol/frontend/node_modules/@mysten/sui/dist/grpc/*.mjs)",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "Bash(curl:*)"
     ]
   },
   "enabledPlugins": {

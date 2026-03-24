@@ -108,3 +108,61 @@ public fun e_no_dispute_timestamp(): u64 { 60 }
 public fun default_dispute_timeout(): u64 { 604_800_000 }   // 7 days
 public fun min_dispute_timeout(): u64 { 86_400_000 }        // 1 day
 public fun max_dispute_timeout(): u64 { 2_592_000_000 }     // 30 days
+
+// === v5 Task Types ===
+public fun task_type_custom(): u8 { 0 }
+public fun task_type_kill(): u8 { 1 }
+public fun task_type_delivery(): u8 { 2 }
+public fun task_type_build(): u8 { 3 }
+public fun task_type_intel(): u8 { 4 }
+
+// === v5 Verification Modes ===
+public fun verify_mode_auto(): u8 { 0 }
+public fun verify_mode_oracle(): u8 { 1 }
+public fun verify_mode_seal(): u8 { 2 }
+public fun verify_mode_manual(): u8 { 3 }
+
+// === v5 Intel Limits ===
+public fun max_intel_payload_size(): u64 { 4096 }
+
+// === v5 Task Type Error Codes ===
+public fun e_invalid_task_type(): u64 { 61 }
+public fun e_task_type_already_set(): u64 { 62 }
+public fun e_task_type_requires_open(): u64 { 63 }
+public fun e_task_type_has_active_claims(): u64 { 64 }
+public fun e_wrong_task_type(): u64 { 65 }
+public fun e_criteria_already_set(): u64 { 66 }
+public fun e_missing_criteria(): u64 { 67 }
+
+// === v5 Kill Verify Error Codes ===
+public fun e_not_killer(): u64 { 68 }
+public fun e_killmail_too_old(): u64 { 69 }
+public fun e_solar_system_mismatch(): u64 { 70 }
+public fun e_loss_type_mismatch(): u64 { 71 }
+public fun e_killmail_already_used(): u64 { 72 }
+public fun e_character_mismatch(): u64 { 73 }
+
+// === v5 Oracle Error Codes ===
+public fun e_not_registry_admin(): u64 { 74 }
+public fun e_oracle_not_active(): u64 { 75 }
+public fun e_oracle_already_registered(): u64 { 76 }
+public fun e_invalid_attestation(): u64 { 77 }
+public fun e_nonce_already_used(): u64 { 78 }
+public fun e_attestation_bounty_mismatch(): u64 { 79 }
+public fun e_attestation_hunter_mismatch(): u64 { 80 }
+
+// === v5 Intel Error Codes ===
+public fun e_intel_payload_too_large(): u64 { 81 }
+public fun e_intel_payload_empty(): u64 { 82 }
+public fun e_intel_already_posted(): u64 { 83 }
+public fun e_intel_not_posted(): u64 { 84 }
+public fun e_not_intel_creator(): u64 { 85 }
+public fun e_intel_already_confirmed(): u64 { 86 }
+
+// === v5 Build Verify Error Codes ===
+public fun e_not_assembly_owner(): u64 { 87 }
+
+// === v5 Delivery Verify Error Codes ===
+public fun e_delivery_quantity_insufficient(): u64 { 88 }
+public fun e_delivery_item_mismatch(): u64 { 89 }
+public fun e_delivery_target_mismatch(): u64 { 90 }

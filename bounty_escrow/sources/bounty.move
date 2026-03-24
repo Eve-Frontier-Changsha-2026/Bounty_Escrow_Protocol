@@ -239,6 +239,40 @@ public fun ticket_bounty_id(ticket: &ClaimTicket): ID { ticket.bounty_id }
 public fun ticket_hunter(ticket: &ClaimTicket): address { ticket.hunter }
 public fun ticket_stake_amount(ticket: &ClaimTicket): u64 { ticket.stake_amount }
 
+// === v5 Package-level Accessors ===
+
+/// Expose UID for DF read from other package modules
+public(package) fun uid<T>(bounty: &Bounty<T>): &UID { &bounty.id }
+
+/// Expose mutable UID for DF write from other package modules
+public(package) fun uid_mut<T>(bounty: &mut Bounty<T>): &mut UID { &mut bounty.id }
+
+/// Auto-verify approve: called by verify_* modules (no VerifierCap needed)
+/// Same logic as approve_hunter but without VerifierCap check
+public(package) fun auto_verify_approve<T>(
+    bounty: &mut Bounty<T>,
+    hunter: address,
+    clock: &Clock,
+    _ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let bounty_id = object::id(bounty);
+
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    assert!(vec_map::contains(&bounty.active_hunter_stakes, &hunter), constants::e_hunter_not_active());
+    assert!(!vec_set::contains(&bounty.approved_hunters, &hunter), constants::e_already_approved());
+    assert!(now <= bounty.deadline + bounty.grace_period, constants::e_grace_period_not_passed());
+
+    vec_set::insert(&mut bounty.approved_hunters, hunter);
+
+    event::emit(BountyApproved {
+        bounty_id,
+        hunter,
+        verifier: @0x0, // auto-verified, no human verifier
+    });
+}
+
 // === Helpers ===
 
 fun checked_mul(a: u64, b: u64): u64 {
