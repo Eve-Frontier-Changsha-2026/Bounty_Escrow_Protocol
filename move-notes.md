@@ -1,5 +1,20 @@
 # Move Notes — Bounty Escrow Protocol
 
+## 2026-03-24: Testnet v4 Upgrade — Dispute Fairness
+
+| Item | Value |
+|------|-------|
+| Tx Digest | `6nn5FXrSW9F167wHtvjiTaWUbZWsb7n1UMcsKPYbzta8` |
+| Package ID (v4) | `0x5357556af095edf9ff7f8481d384e10266758f746b0f2aafde0805a9415f521c` |
+| Package ID (v3) | `0x76b952d0acf15742daadb76f6b1921442bafbd8201d5449d2e0a73056a7df39c` |
+| ORIGINAL_PACKAGE_ID (v1) | `0x8222b1e623985cf9ef25d6d60f8a812c24fb0ac81f8ab6db6929bde273e6cb16` |
+| UpgradeCap | `0x10e4164c6dae28a5a861865852c794c462f1085bf277219a4e7eac47bcc8b7e9` |
+| Gas Cost | ~0.16 SUI |
+
+**注意：** v4 新增的 struct type（`ArbitratorConfigKey`, `ArbitratorConfig`, `DisputeTimestampKey`, `DisputeTimestamp`, `ArbitratorSetEvent`, `DisputeAutoResolvedEvent`, `HunterWithdrawnEvent`）歸屬 v4 PACKAGE_ID。前端查詢需用 v4 ID。
+
+---
+
 ## 2026-03-24: v4 Dispute Fairness — Arbitrator + Auto-Resolve + Withdraw
 
 **目的：** 修復 `resolve_dispute` 球員兼裁判問題。Creator 不再自己裁決 dispute，改由獨立仲裁者或 timeout 自動 approve。Hunter 可主動退出拿回 stake。

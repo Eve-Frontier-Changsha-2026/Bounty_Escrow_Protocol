@@ -85,6 +85,15 @@ export const ERROR_MESSAGES: Record<number, string> = {
   49: 'Resubmission already used (max 1)',
   50: 'Reason too long (max 1024 chars)',
   51: 'Review window has expired',
+  52: 'Not the designated arbitrator',
+  53: 'Creator cannot be arbitrator',
+  54: 'Dispute timeout too short (min 1 day)',
+  55: 'Dispute timeout too long (max 30 days)',
+  56: 'Dispute timeout has not expired yet',
+  57: 'Hunter has an active proof submission',
+  58: 'Hunter is already approved',
+  59: 'No dispute timestamp found',
+  60: 'Cannot set arbitrator after claims',
 };
 
 export const ProofStatus = {
@@ -133,4 +142,7 @@ export const LIMITS = {
   MIN_REVIEW_PERIOD_MS: 3_600_000,
   MAX_REVIEW_PERIOD_MS: 604_800_000,
   DEFAULT_REVIEW_PERIOD_MS: 259_200_000,
+  DEFAULT_DISPUTE_TIMEOUT_MS: 604_800_000,
+  MIN_DISPUTE_TIMEOUT_MS: 86_400_000,
+  MAX_DISPUTE_TIMEOUT_MS: 2_592_000_000,
 } as const;

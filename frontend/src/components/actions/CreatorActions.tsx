@@ -7,31 +7,46 @@ import { buildCancel } from '../../lib/ptb/cancel';
 import { buildWithdrawRemaining } from '../../lib/ptb/withdraw-remaining';
 import { buildResolveDispute } from '../../lib/ptb/resolve-dispute';
 import { buildSetReviewPeriod } from '../../lib/ptb/set-review-period';
+import { buildSetArbitrator } from '../../lib/ptb/set-arbitrator';
 import { BountyStatus, ProofStatus, PROOF_STATUS_LABEL, LIMITS } from '../../lib/constants';
 import { truncateAddress } from '../../lib/format';
 import type { ParsedBounty, Toast } from '../../lib/types';
+import type { ArbitratorConfig } from '../../hooks/useArbitratorConfig';
 
-const INVALIDATE_KEYS = [['bountyDetail'], ['bountyList'], ['proofSubmission'], ['reviewConfig']];
+const INVALIDATE_KEYS = [['bountyDetail'], ['bountyList'], ['proofSubmission'], ['reviewConfig'], ['arbitratorConfig']];
 
 interface CreatorActionsProps {
   bounty: ParsedBounty;
+  arbitratorConfig: ArbitratorConfig | null;
   onToast: (t: Toast) => void;
 }
 
-export function CreatorActions({ bounty, onToast }: CreatorActionsProps) {
+export function CreatorActions({ bounty, arbitratorConfig, onToast }: CreatorActionsProps) {
   const { execute, isPending } = useTransactionExecutor(INVALIDATE_KEYS);
   const proofQueries = useHunterProofs(bounty.id, bounty.hunters);
   const [pendingAddr, setPendingAddr] = useState<string | null>(null);
   const [reviewPeriodHours, setReviewPeriodHours] = useState('72');
   const [showReviewPeriod, setShowReviewPeriod] = useState(false);
 
+  // Arbitrator form state
+  const [showArbitratorForm, setShowArbitratorForm] = useState(false);
+  const [arbAddress, setArbAddress] = useState('');
+  const [arbTimeoutDays, setArbTimeoutDays] = useState('7');
+
   const isActive = bounty.status === BountyStatus.OPEN || bounty.status === BountyStatus.CLAIMED;
   const canCancel = isActive;
   const canWithdrawRemaining = bounty.status === BountyStatus.CANCELLED && bounty.activeClaims === 0;
   const canSetReviewPeriod = bounty.status === BountyStatus.OPEN && bounty.activeClaims === 0;
+  const canSetArbitrator = bounty.status === BountyStatus.OPEN && bounty.activeClaims === 0;
 
   const reviewPeriodMs = Math.round(parseFloat(reviewPeriodHours || '0') * 3_600_000);
   const reviewPeriodValid = reviewPeriodMs >= LIMITS.MIN_REVIEW_PERIOD_MS && reviewPeriodMs <= LIMITS.MAX_REVIEW_PERIOD_MS;
+
+  const arbTimeoutMs = Math.round(parseFloat(arbTimeoutDays || '0') * 86_400_000);
+  const arbAddressValid = arbAddress.startsWith('0x') && arbAddress.length >= 66;
+  const arbTimeoutValid = arbTimeoutMs >= LIMITS.MIN_DISPUTE_TIMEOUT_MS && arbTimeoutMs <= LIMITS.MAX_DISPUTE_TIMEOUT_MS;
+
+  const hasArbitrator = !!arbitratorConfig;
 
   async function handleResolveDispute(hunterAddr: string, approve: boolean) {
     setPendingAddr(hunterAddr);
@@ -87,6 +102,24 @@ export function CreatorActions({ bounty, onToast }: CreatorActionsProps) {
     }
   }
 
+  async function handleSetArbitrator() {
+    if (!arbAddressValid || !arbTimeoutValid) return;
+    try {
+      const tx = buildSetArbitrator({
+        bountyId: bounty.id,
+        arbitrator: arbAddress.trim(),
+        disputeTimeoutMs: arbTimeoutMs,
+        coinType: bounty.coinType,
+      });
+      const digest = await execute(tx);
+      onToast({ type: 'success', message: `Arbitrator set to ${truncateAddress(arbAddress)}!`, digest });
+      setShowArbitratorForm(false);
+      setArbAddress('');
+    } catch (err) {
+      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Set arbitrator failed' });
+    }
+  }
+
   // Collect hunters with disputed or resolved proofs for display
   const disputeEntries = bounty.hunters
     .map((hunter, i) => ({ hunter, proof: proofQueries[i]?.data }))
@@ -99,6 +132,56 @@ export function CreatorActions({ bounty, onToast }: CreatorActionsProps) {
   return (
     <div className="space-y-3">
       <h3 className="font-heading text-xs text-eve-gold tracking-wider">CREATOR ACTIONS</h3>
+
+      {/* Arbitrator info / setup */}
+      {hasArbitrator && (
+        <div className="p-3 bg-eve-bg-2 rounded-lg border border-eve-panel-border/50 space-y-1">
+          <h4 className="font-heading text-[10px] text-eve-sub tracking-wider">ARBITRATOR</h4>
+          <div className="text-xs text-eve-text font-mono">{truncateAddress(arbitratorConfig.arbitrator)}</div>
+          <div className="text-[10px] text-eve-sub">
+            Dispute timeout: {Math.round(arbitratorConfig.disputeTimeoutMs / 86_400_000)}d
+          </div>
+        </div>
+      )}
+
+      {canSetArbitrator && (
+        <div className="space-y-2">
+          {!showArbitratorForm ? (
+            <Button variant="secondary" onClick={() => setShowArbitratorForm(true)} className="w-full">
+              {hasArbitrator ? 'UPDATE ARBITRATOR' : 'SET ARBITRATOR'}
+            </Button>
+          ) : (
+            <div className="space-y-2 p-3 bg-eve-bg-2 rounded-lg border border-eve-panel-border/50">
+              <Input
+                label="Arbitrator Address"
+                value={arbAddress}
+                onChange={(e) => setArbAddress(e.target.value)}
+                placeholder="0x..."
+                hint="Cannot be your own address"
+              />
+              <Input
+                label="Dispute Timeout (days)"
+                type="number"
+                value={arbTimeoutDays}
+                onChange={(e) => setArbTimeoutDays(e.target.value)}
+                placeholder="7"
+                hint={`Range: ${LIMITS.MIN_DISPUTE_TIMEOUT_MS / 86_400_000}–${LIMITS.MAX_DISPUTE_TIMEOUT_MS / 86_400_000} days`}
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  disabled={isPending || !arbAddressValid || !arbTimeoutValid}
+                  onClick={handleSetArbitrator}
+                  className="flex-1"
+                >
+                  {isPending ? 'SETTING...' : 'CONFIRM'}
+                </Button>
+                <Button variant="secondary" onClick={() => setShowArbitratorForm(false)}>CANCEL</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Dispute resolution list */}
       {isActive && disputeEntries.length > 0 && (
@@ -145,7 +228,7 @@ export function CreatorActions({ bounty, onToast }: CreatorActionsProps) {
                 )}
 
                 {/* Action buttons — only for DISPUTED status */}
-                {isDisputed && (
+                {isDisputed && !hasArbitrator && (
                   <div className="flex gap-2 pt-1">
                     <Button
                       variant="primary"
@@ -164,6 +247,13 @@ export function CreatorActions({ bounty, onToast }: CreatorActionsProps) {
                       {busy ? '...' : 'REJECT'}
                     </Button>
                   </div>
+                )}
+
+                {/* Arbitrator assigned — creator cannot resolve */}
+                {isDisputed && hasArbitrator && (
+                  <p className="text-[10px] text-eve-sub italic">
+                    Assigned to arbitrator: {truncateAddress(arbitratorConfig.arbitrator)}
+                  </p>
                 )}
 
                 {/* Resolved status messages */}

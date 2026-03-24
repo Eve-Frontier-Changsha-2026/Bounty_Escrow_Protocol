@@ -12,11 +12,15 @@ import { buildSubmitProof } from '../../lib/ptb/submit-proof';
 import { buildResubmitProof } from '../../lib/ptb/resubmit-proof';
 import { buildDisputeRejection } from '../../lib/ptb/dispute-rejection';
 import { buildAutoApproveProof } from '../../lib/ptb/auto-approve';
+import { buildAutoResolveDispute } from '../../lib/ptb/auto-resolve-dispute';
+import { buildWithdrawFromBounty } from '../../lib/ptb/withdraw-from-bounty';
 import { BountyStatus, ProofStatus, LIMITS } from '../../lib/constants';
 import { mistToSui } from '../../lib/format';
 import type { ParsedBounty, ParsedClaimTicket, ParsedProofSubmission, Toast } from '../../lib/types';
+import type { ArbitratorConfig } from '../../hooks/useArbitratorConfig';
+import type { DisputeTimestamp } from '../../hooks/useDisputeTimestamp';
 
-const INVALIDATE_KEYS = [['bountyDetail'], ['bountyList'], ['ownedTickets'], ['proofSubmission'], ['reviewConfig']];
+const INVALIDATE_KEYS = [['bountyDetail'], ['bountyList'], ['ownedTickets'], ['proofSubmission'], ['reviewConfig'], ['arbitratorConfig'], ['disputeTimestamp']];
 
 interface HunterActionsProps {
   bounty: ParsedBounty;
@@ -24,10 +28,12 @@ interface HunterActionsProps {
   isApproved: boolean;
   proof: ParsedProofSubmission | null;
   reviewPeriodMs: number;
+  arbitratorConfig: ArbitratorConfig | null;
+  disputeTimestamp: DisputeTimestamp | null;
   onToast: (t: Toast) => void;
 }
 
-export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodMs, onToast }: HunterActionsProps) {
+export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodMs, arbitratorConfig, disputeTimestamp, onToast }: HunterActionsProps) {
   const { execute, isPending } = useTransactionExecutor(INVALIDATE_KEYS);
 
   // Proof form state
@@ -39,6 +45,7 @@ export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodM
 
   const isActive = bounty.status === BountyStatus.OPEN || bounty.status === BountyStatus.CLAIMED;
   const beforeDeadline = Date.now() < bounty.deadline;
+  const beforeGraceEnd = Date.now() < bounty.deadline + bounty.gracePeriod;
 
   const canClaim = !ticket && bounty.status === BountyStatus.OPEN && bounty.activeClaims < bounty.maxClaims && beforeDeadline;
   const canAbandon = !!ticket && isActive && beforeDeadline;
@@ -55,6 +62,19 @@ export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodM
   const canDisputeRejection = !!ticket && proof?.status === ProofStatus.REJECTED && Date.now() < bounty.deadline + bounty.gracePeriod;
   const canAutoApprove = !!ticket && proof?.status === ProofStatus.SUBMITTED &&
     Date.now() >= proof.submittedAt + reviewPeriodMs;
+
+  // v4: Withdraw from bounty (get stake back)
+  const canWithdrawFromBounty = !!ticket && isActive && beforeGraceEnd &&
+    (!proof || proof.status === ProofStatus.REJECTED || proof.status === ProofStatus.RESOLVED_REJECTED);
+
+  // v4: Auto-resolve dispute (permissionless, after timeout)
+  const disputeTimeoutMs = arbitratorConfig?.disputeTimeoutMs ?? LIMITS.DEFAULT_DISPUTE_TIMEOUT_MS;
+  const canAutoResolve = !!ticket && proof?.status === ProofStatus.DISPUTED && !!disputeTimestamp &&
+    Date.now() >= disputeTimestamp.disputedAt + disputeTimeoutMs;
+
+  // Countdown for auto-resolve
+  const autoResolveAt = disputeTimestamp ? disputeTimestamp.disputedAt + disputeTimeoutMs : 0;
+  const autoResolveRemaining = Math.max(0, autoResolveAt - Date.now());
 
   async function handleAction(action: string) {
     try {
@@ -150,9 +170,45 @@ export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodM
     }
   }
 
+  async function handleAutoResolve() {
+    try {
+      const tx = buildAutoResolveDispute({
+        bountyId: bounty.id,
+        hunterAddr: ticket!.hunter,
+        coinType: bounty.coinType,
+      });
+      const digest = await execute(tx);
+      onToast({ type: 'success', message: 'Dispute auto-resolved in your favor!', digest });
+    } catch (err) {
+      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Auto-resolve failed' });
+    }
+  }
+
+  async function handleWithdrawFromBounty() {
+    try {
+      const tx = buildWithdrawFromBounty({
+        bountyId: bounty.id,
+        ticketId: ticket!.id,
+        coinType: bounty.coinType,
+      });
+      const digest = await execute(tx);
+      onToast({ type: 'success', message: 'Withdrawn from bounty. Stake returned!', digest });
+    } catch (err) {
+      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Withdraw failed' });
+    }
+  }
+
   const proofUrlValid = proofUrl.trim().length > 0 && proofUrl.trim().length <= LIMITS.MAX_PROOF_URL;
   const proofDescValid = proofDescription.length <= LIMITS.MAX_PROOF_DESCRIPTION;
   const disputeReasonValid = disputeReason.trim().length > 0 && disputeReason.trim().length <= LIMITS.MAX_REASON;
+
+  function formatCountdown(ms: number): string {
+    const days = Math.floor(ms / 86_400_000);
+    const hours = Math.floor((ms % 86_400_000) / 3_600_000);
+    if (days > 0) return `${days}d ${hours}h`;
+    const minutes = Math.floor((ms % 3_600_000) / 60_000);
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+  }
 
   return (
     <div className="space-y-3">
@@ -294,19 +350,42 @@ export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodM
         </Button>
       )}
 
+      {/* Auto-resolve dispute (timeout expired) */}
+      {canAutoResolve && (
+        <Button variant="primary" disabled={isPending} onClick={handleAutoResolve} className="w-full">
+          {isPending ? 'RESOLVING...' : 'AUTO-RESOLVE DISPUTE (timeout expired)'}
+        </Button>
+      )}
+
       {/* Waiting states */}
       {ticket && proof?.status === ProofStatus.SUBMITTED && !canAutoApprove && (
         <p className="text-xs text-eve-sub">Proof submitted. Waiting for verifier review...</p>
       )}
-      {ticket && proof?.status === ProofStatus.DISPUTED && (
-        <p className="text-xs text-eve-sub">Dispute pending creator resolution...</p>
+      {ticket && proof?.status === ProofStatus.DISPUTED && !canAutoResolve && (
+        <div className="space-y-1">
+          <p className="text-xs text-eve-sub">
+            Dispute pending {arbitratorConfig ? 'arbitrator' : 'creator'} resolution...
+          </p>
+          {disputeTimestamp && autoResolveRemaining > 0 && (
+            <p className="text-[10px] text-eve-gold">
+              Auto-resolve in {formatCountdown(autoResolveRemaining)}
+            </p>
+          )}
+        </div>
       )}
       {ticket && proof?.status === ProofStatus.RESOLVED_REJECTED && (
         <p className="text-xs text-eve-danger">Dispute was resolved against you.</p>
       )}
 
+      {/* Withdraw from bounty (get stake back) */}
+      {canWithdrawFromBounty && (
+        <Button variant="secondary" disabled={isPending} onClick={handleWithdrawFromBounty} className="w-full">
+          {isPending ? 'WITHDRAWING...' : 'WITHDRAW FROM BOUNTY (get stake back)'}
+        </Button>
+      )}
+
       {/* Abandon */}
-      {canAbandon && (
+      {canAbandon && !canWithdrawFromBounty && (
         <Button variant="danger" disabled={isPending} onClick={() => handleAction('abandon')} className="w-full">
           {isPending ? 'ABANDONING...' : 'ABANDON CLAIM (forfeit stake)'}
         </Button>
@@ -327,7 +406,7 @@ export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodM
       )}
 
       {/* Fallback waiting state (no proof yet, has ticket, nothing else to do) */}
-      {ticket && !proof && !canSubmitProof && !canClaimReward && !canAbandon && !canWithdrawPenalty && !canDestroyTicket && (
+      {ticket && !proof && !canSubmitProof && !canClaimReward && !canAbandon && !canWithdrawPenalty && !canDestroyTicket && !canWithdrawFromBounty && (
         <p className="text-xs text-eve-sub">Waiting for verifier approval...</p>
       )}
     </div>

@@ -6,6 +6,8 @@ import { useUserRole } from '../hooks/useUserRole';
 import { useProofSubmission } from '../hooks/useProofSubmission';
 import { useReviewConfig } from '../hooks/useReviewConfig';
 import { useRejectionHistory } from '../hooks/useRejectionHistory';
+import { useArbitratorConfig } from '../hooks/useArbitratorConfig';
+import { useDisputeTimestamp } from '../hooks/useDisputeTimestamp';
 import { Panel } from '../components/ui/Panel';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { TransactionToast } from '../components/ui/TransactionToast';
@@ -29,6 +31,8 @@ export function BountyDetailPage() {
   const { data: proof, error: proofError } = useProofSubmission(bountyId, account?.address);
   const { data: reviewPeriodMs } = useReviewConfig(bountyId);
   const { data: rejections } = useRejectionHistory(bountyId, account?.address);
+  const { data: arbitratorConfig } = useArbitratorConfig(bountyId);
+  const { data: disputeTimestamp } = useDisputeTimestamp(bountyId, account?.address);
   const [toast, setToast] = useState<Toast | null>(null);
 
   if (isLoading) {
@@ -122,6 +126,23 @@ export function BountyDetailPage() {
         )}
       </Panel>
 
+      {/* Arbitrator Info */}
+      {arbitratorConfig && (
+        <Panel className="mb-4">
+          <h2 className="font-heading text-xs text-eve-gold tracking-wider mb-3">ARBITRATOR</h2>
+          <div className="grid grid-cols-2 gap-4 text-center">
+            <div>
+              <div className="text-xs text-eve-sub">Address</div>
+              <div className="text-sm text-eve-text font-mono">{truncateAddress(arbitratorConfig.arbitrator)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-eve-sub">Dispute Timeout</div>
+              <div className="text-sm text-eve-text">{Math.round(arbitratorConfig.disputeTimeoutMs / 86_400_000)} days</div>
+            </div>
+          </div>
+        </Panel>
+      )}
+
       {/* Claimed Hunters */}
       {bounty.hunters.length > 0 && (
         <Panel className="mb-4">
@@ -174,7 +195,7 @@ export function BountyDetailPage() {
           <h2 className="font-heading text-xs text-eve-gold tracking-wider">ACTIONS</h2>
 
           {isCreator && (
-            <CreatorActions bounty={bounty} onToast={setToast} />
+            <CreatorActions bounty={bounty} arbitratorConfig={arbitratorConfig ?? null} onToast={setToast} />
           )}
 
           {!isCreator && (
@@ -184,6 +205,8 @@ export function BountyDetailPage() {
               isApproved={isApproved ?? false}
               proof={proof ?? null}
               reviewPeriodMs={effectiveReviewPeriod}
+              arbitratorConfig={arbitratorConfig ?? null}
+              disputeTimestamp={disputeTimestamp ?? null}
               onToast={setToast}
             />
           )}
