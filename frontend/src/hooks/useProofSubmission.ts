@@ -20,8 +20,10 @@ export async function fetchProofSubmission(
   }
 
   const fields = result.data.content.fields as Record<string, unknown>;
-  const value = fields.value as Record<string, unknown> | undefined;
-  if (!value) return null;
+  // SUI JSON-RPC wraps nested struct values: value may be { fields: { ... } } or flat
+  const rawValue = fields.value as Record<string, unknown> | undefined;
+  if (!rawValue) return null;
+  const value = (rawValue.fields as Record<string, unknown> | undefined) ?? rawValue;
 
   return {
     proofUrl: String(value.proof_url ?? ''),

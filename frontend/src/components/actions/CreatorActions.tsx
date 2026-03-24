@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useTransactionExecutor } from '../../hooks/useTransactionExecutor';
+import { useHunterProofs } from '../../hooks/useProofSubmission';
 import { buildCancel } from '../../lib/ptb/cancel';
 import { buildWithdrawRemaining } from '../../lib/ptb/withdraw-remaining';
 import { buildResolveDispute } from '../../lib/ptb/resolve-dispute';
 import { buildSetReviewPeriod } from '../../lib/ptb/set-review-period';
-import { BountyStatus, LIMITS } from '../../lib/constants';
+import { BountyStatus, ProofStatus, PROOF_STATUS_LABEL, LIMITS } from '../../lib/constants';
+import { truncateAddress } from '../../lib/format';
 import type { ParsedBounty, Toast } from '../../lib/types';
 
 const INVALIDATE_KEYS = [['bountyDetail'], ['bountyList'], ['proofSubmission'], ['reviewConfig']];
@@ -18,7 +20,8 @@ interface CreatorActionsProps {
 
 export function CreatorActions({ bounty, onToast }: CreatorActionsProps) {
   const { execute, isPending } = useTransactionExecutor(INVALIDATE_KEYS);
-  const [disputeHunterAddr, setDisputeHunterAddr] = useState('');
+  const proofQueries = useHunterProofs(bounty.id, bounty.hunters);
+  const [pendingAddr, setPendingAddr] = useState<string | null>(null);
   const [reviewPeriodHours, setReviewPeriodHours] = useState('72');
   const [showReviewPeriod, setShowReviewPeriod] = useState(false);
 
@@ -29,6 +32,24 @@ export function CreatorActions({ bounty, onToast }: CreatorActionsProps) {
 
   const reviewPeriodMs = Math.round(parseFloat(reviewPeriodHours || '0') * 3_600_000);
   const reviewPeriodValid = reviewPeriodMs >= LIMITS.MIN_REVIEW_PERIOD_MS && reviewPeriodMs <= LIMITS.MAX_REVIEW_PERIOD_MS;
+
+  async function handleResolveDispute(hunterAddr: string, approve: boolean) {
+    setPendingAddr(hunterAddr);
+    try {
+      const tx = buildResolveDispute({
+        bountyId: bounty.id,
+        hunterAddr,
+        approve,
+        coinType: bounty.coinType,
+      });
+      const digest = await execute(tx);
+      onToast({ type: 'success', message: `Dispute ${approve ? 'approved' : 'rejected'} for ${truncateAddress(hunterAddr)}!`, digest });
+    } catch (err) {
+      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Resolve failed' });
+    } finally {
+      setPendingAddr(null);
+    }
+  }
 
   async function handleCancel() {
     try {
@@ -50,23 +71,6 @@ export function CreatorActions({ bounty, onToast }: CreatorActionsProps) {
     }
   }
 
-  async function handleResolveDispute(approve: boolean) {
-    if (!disputeHunterAddr.startsWith('0x')) return;
-    try {
-      const tx = buildResolveDispute({
-        bountyId: bounty.id,
-        hunterAddr: disputeHunterAddr,
-        approve,
-        coinType: bounty.coinType,
-      });
-      const digest = await execute(tx);
-      onToast({ type: 'success', message: `Dispute ${approve ? 'approved' : 'rejected'}!`, digest });
-      setDisputeHunterAddr('');
-    } catch (err) {
-      onToast({ type: 'error', message: err instanceof Error ? err.message : 'Resolve failed' });
-    }
-  }
-
   async function handleSetReviewPeriod() {
     if (!reviewPeriodValid) return;
     try {
@@ -83,38 +87,95 @@ export function CreatorActions({ bounty, onToast }: CreatorActionsProps) {
     }
   }
 
+  // Collect hunters with disputed or resolved proofs for display
+  const disputeEntries = bounty.hunters
+    .map((hunter, i) => ({ hunter, proof: proofQueries[i]?.data }))
+    .filter(({ proof }) =>
+      proof?.status === ProofStatus.DISPUTED ||
+      proof?.status === ProofStatus.RESOLVED_APPROVED ||
+      proof?.status === ProofStatus.RESOLVED_REJECTED
+    );
+
   return (
     <div className="space-y-3">
       <h3 className="font-heading text-xs text-eve-gold tracking-wider">CREATOR ACTIONS</h3>
 
-      {/* Resolve dispute */}
-      {isActive && (
+      {/* Dispute resolution list */}
+      {isActive && disputeEntries.length > 0 && (
         <div className="space-y-2">
-          <Input
-            label="Resolve Dispute — Hunter Address"
-            value={disputeHunterAddr}
-            onChange={(e) => setDisputeHunterAddr(e.target.value)}
-            placeholder="0x..."
-            hint="Enter the hunter address whose dispute you want to resolve"
-          />
-          <div className="flex gap-2">
-            <Button
-              variant="primary"
-              disabled={isPending || !disputeHunterAddr.startsWith('0x')}
-              onClick={() => handleResolveDispute(true)}
-              className="flex-1"
-            >
-              {isPending ? 'RESOLVING...' : 'APPROVE DISPUTE'}
-            </Button>
-            <Button
-              variant="danger"
-              disabled={isPending || !disputeHunterAddr.startsWith('0x')}
-              onClick={() => handleResolveDispute(false)}
-              className="flex-1"
-            >
-              {isPending ? 'RESOLVING...' : 'REJECT DISPUTE'}
-            </Button>
-          </div>
+          <h4 className="font-heading text-[10px] text-eve-sub tracking-wider">DISPUTES</h4>
+          {disputeEntries.map(({ hunter, proof }) => {
+            const status = proof!.status;
+            const isDisputed = status === ProofStatus.DISPUTED;
+            const busy = isPending && pendingAddr === hunter;
+
+            return (
+              <div
+                key={hunter}
+                className="p-3 bg-eve-bg-2 rounded-lg border border-eve-panel-border/50 space-y-2"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-mono text-eve-text truncate flex-1">
+                    {truncateAddress(hunter)}
+                  </span>
+                  <span className={`text-[10px] font-heading tracking-wider ${
+                    status === ProofStatus.RESOLVED_APPROVED
+                      ? 'text-green-400'
+                      : status === ProofStatus.RESOLVED_REJECTED
+                        ? 'text-eve-danger'
+                        : 'text-yellow-400'
+                  }`}>
+                    {PROOF_STATUS_LABEL[status] ?? `STATUS ${status}`}
+                  </span>
+                </div>
+
+                {/* Proof content */}
+                {proof && (
+                  <div className="text-[11px] text-eve-sub space-y-1">
+                    {proof.proofUrl && (
+                      <p className="truncate">URL: <span className="text-eve-text">{proof.proofUrl}</span></p>
+                    )}
+                    {proof.proofDescription && (
+                      <p className="truncate">Desc: <span className="text-eve-text">{proof.proofDescription}</span></p>
+                    )}
+                    {proof.disputeReason && (
+                      <p className="truncate">Dispute: <span className="text-yellow-400">{proof.disputeReason}</span></p>
+                    )}
+                  </div>
+                )}
+
+                {/* Action buttons — only for DISPUTED status */}
+                {isDisputed && (
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      variant="primary"
+                      disabled={busy}
+                      onClick={() => handleResolveDispute(hunter, true)}
+                      className="text-xs !px-3 !py-1 flex-1"
+                    >
+                      {busy ? '...' : 'APPROVE'}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      disabled={busy}
+                      onClick={() => handleResolveDispute(hunter, false)}
+                      className="text-xs !px-3 !py-1 flex-1"
+                    >
+                      {busy ? '...' : 'REJECT'}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Resolved status messages */}
+                {status === ProofStatus.RESOLVED_APPROVED && (
+                  <p className="text-[10px] text-green-400 italic">Approved. Hunter can claim reward.</p>
+                )}
+                {status === ProofStatus.RESOLVED_REJECTED && (
+                  <p className="text-[10px] text-eve-danger italic">Rejected. Stake will be forfeited on expiry.</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

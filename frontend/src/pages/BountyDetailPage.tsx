@@ -5,6 +5,7 @@ import { useBountyDetail } from '../hooks/useBountyDetail';
 import { useUserRole } from '../hooks/useUserRole';
 import { useProofSubmission } from '../hooks/useProofSubmission';
 import { useReviewConfig } from '../hooks/useReviewConfig';
+import { useRejectionHistory } from '../hooks/useRejectionHistory';
 import { Panel } from '../components/ui/Panel';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { TransactionToast } from '../components/ui/TransactionToast';
@@ -27,6 +28,7 @@ export function BountyDetailPage() {
   const { isCreator, isVerifier, ticket, verifierCap } = useUserRole(bounty);
   const { data: proof, error: proofError } = useProofSubmission(bountyId, account?.address);
   const { data: reviewPeriodMs } = useReviewConfig(bountyId);
+  const { data: rejections } = useRejectionHistory(bountyId, account?.address);
   const [toast, setToast] = useState<Toast | null>(null);
 
   if (isLoading) {
@@ -139,7 +141,7 @@ export function BountyDetailPage() {
 
       {/* Proof Status */}
       {proof && (
-        <ProofStatusPanel proof={proof} reviewPeriodMs={effectiveReviewPeriod} />
+        <ProofStatusPanel proof={proof} reviewPeriodMs={effectiveReviewPeriod} rejections={rejections ?? []} />
       )}
       {proofError && (
         <Panel className="mb-4 border-eve-danger/50">

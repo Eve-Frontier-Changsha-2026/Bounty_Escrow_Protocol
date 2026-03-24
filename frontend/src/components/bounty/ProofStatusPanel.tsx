@@ -3,13 +3,15 @@ import { CountdownTimer } from './CountdownTimer';
 import { PROOF_STATUS_LABEL, PROOF_STATUS_COLOR, ProofStatus } from '../../lib/constants';
 import { formatTimestamp, truncateAddress } from '../../lib/format';
 import type { ParsedProofSubmission } from '../../lib/types';
+import type { RejectionRecord } from '../../hooks/useRejectionHistory';
 
 interface ProofStatusPanelProps {
   proof: ParsedProofSubmission;
   reviewPeriodMs: number;
+  rejections: RejectionRecord[];
 }
 
-export function ProofStatusPanel({ proof, reviewPeriodMs }: ProofStatusPanelProps) {
+export function ProofStatusPanel({ proof, reviewPeriodMs, rejections }: ProofStatusPanelProps) {
   const label = PROOF_STATUS_LABEL[proof.status] ?? 'UNKNOWN';
   const color = PROOF_STATUS_COLOR[proof.status] ?? 'text-eve-sub';
   const reviewDeadline = proof.submittedAt + reviewPeriodMs;
@@ -61,18 +63,20 @@ export function ProofStatusPanel({ proof, reviewPeriodMs }: ProofStatusPanelProp
           </div>
         )}
 
-        {/* Rejection reason */}
-        {proof.status === ProofStatus.REJECTED && proof.rejectionReason && (
-          <div className="pt-2 border-t border-eve-panel-border/50">
-            <div className="text-xs text-eve-danger">
-              <span className="font-heading tracking-wider">REJECTION REASON</span>
+        {/* Rejection history (all events) */}
+        {rejections.length > 0 && (
+          <div className="pt-2 border-t border-eve-panel-border/50 space-y-3">
+            <div className="text-xs text-eve-danger font-heading tracking-wider">
+              REJECTION HISTORY ({rejections.length})
             </div>
-            <p className="text-xs text-eve-text mt-1 whitespace-pre-wrap">{proof.rejectionReason}</p>
-            {proof.resolvedBy && proof.resolvedBy !== '0x0000000000000000000000000000000000000000000000000000000000000000' && (
-              <div className="text-xs text-eve-sub mt-1">
-                By {truncateAddress(proof.resolvedBy)} at {formatTimestamp(proof.resolvedAt)}
+            {rejections.map((r, i) => (
+              <div key={i} className="pl-3 border-l-2 border-eve-danger/40 space-y-0.5">
+                <p className="text-xs text-eve-text whitespace-pre-wrap">{r.reason}</p>
+                <p className="text-[10px] text-eve-sub">
+                  By {truncateAddress(r.verifier)} at {formatTimestamp(r.rejectedAt)}
+                </p>
               </div>
-            )}
+            ))}
           </div>
         )}
 

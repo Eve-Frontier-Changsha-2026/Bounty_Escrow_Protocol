@@ -40,7 +40,7 @@ export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodM
   const isActive = bounty.status === BountyStatus.OPEN || bounty.status === BountyStatus.CLAIMED;
   const beforeDeadline = Date.now() < bounty.deadline;
 
-  const canClaim = !ticket && bounty.status === BountyStatus.OPEN && bounty.activeClaims < bounty.maxClaims;
+  const canClaim = !ticket && bounty.status === BountyStatus.OPEN && bounty.activeClaims < bounty.maxClaims && beforeDeadline;
   const canAbandon = !!ticket && isActive && beforeDeadline;
   const canClaimReward = !!ticket && isApproved;
   const canWithdrawPenalty = !!ticket && bounty.status === BountyStatus.CANCELLED;
