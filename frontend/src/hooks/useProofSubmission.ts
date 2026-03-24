@@ -1,6 +1,6 @@
 import { useQuery, useQueries } from '@tanstack/react-query';
 import { jsonRpcClient } from '../lib/rpc';
-import { PACKAGE_ID } from '../config/contracts';
+import { V3_PACKAGE_ID } from '../config/contracts';
 import type { ParsedProofSubmission } from '../lib/types';
 
 export async function fetchProofSubmission(
@@ -10,7 +10,7 @@ export async function fetchProofSubmission(
   const result = await jsonRpcClient.getDynamicFieldObject({
     parentId: bountyId,
     name: {
-      type: `${PACKAGE_ID}::bounty::ProofKey`,
+      type: `${V3_PACKAGE_ID}::bounty::ProofKey`,
       value: { hunter: hunterAddress },
     },
   });

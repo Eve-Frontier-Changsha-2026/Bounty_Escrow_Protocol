@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { jsonRpcClient } from '../lib/rpc';
-import { PACKAGE_ID } from '../config/contracts';
+import { V3_PACKAGE_ID } from '../config/contracts';
 
 export interface RejectionRecord {
   reason: string;
@@ -17,7 +17,7 @@ export function useRejectionHistory(
     queryFn: async () => {
       const result = await jsonRpcClient.queryEvents({
         query: {
-          MoveEventType: `${PACKAGE_ID}::bounty::ProofRejectedEvent`,
+          MoveEventType: `${V3_PACKAGE_ID}::bounty::ProofRejectedEvent`,
         },
         order: 'ascending',
       });

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { jsonRpcClient } from '../lib/rpc';
-import { PACKAGE_ID } from '../config/contracts';
+import { V3_PACKAGE_ID } from '../config/contracts';
 import { LIMITS } from '../lib/constants';
 
 export function useReviewConfig(bountyId: string | undefined) {
@@ -10,7 +10,7 @@ export function useReviewConfig(bountyId: string | undefined) {
       const result = await jsonRpcClient.getDynamicFieldObject({
         parentId: bountyId!,
         name: {
-          type: `${PACKAGE_ID}::bounty::ReviewConfigKey`,
+          type: `${V3_PACKAGE_ID}::bounty::ReviewConfigKey`,
           value: {},
         },
       });
@@ -20,8 +20,9 @@ export function useReviewConfig(bountyId: string | undefined) {
       }
 
       const fields = result.data.content.fields as Record<string, unknown>;
-      const value = fields.value as Record<string, unknown> | undefined;
-      if (!value) return LIMITS.DEFAULT_REVIEW_PERIOD_MS;
+      const rawValue = fields.value as Record<string, unknown> | undefined;
+      if (!rawValue) return LIMITS.DEFAULT_REVIEW_PERIOD_MS;
+      const value = (rawValue.fields as Record<string, unknown> | undefined) ?? rawValue;
 
       return Number(value.review_period_ms ?? LIMITS.DEFAULT_REVIEW_PERIOD_MS);
     },
