@@ -49,6 +49,8 @@ public struct ClaimTicket has key {
 
 public struct ProofKey has copy, drop, store { hunter: address }
 public struct ReviewConfigKey has copy, drop, store {}
+public struct ArbitratorConfigKey has copy, drop, store {}
+public struct DisputeTimestampKey has copy, drop, store { hunter: address }
 
 // === Dynamic Field Values ===
 
@@ -66,6 +68,15 @@ public struct ProofSubmission has store, drop {
 
 public struct ReviewConfig has store, drop {
     review_period_ms: u64,
+}
+
+public struct ArbitratorConfig has store, drop {
+    arbitrator: address,
+    dispute_timeout_ms: u64,
+}
+
+public struct DisputeTimestamp has store, drop {
+    disputed_at: u64,
 }
 
 // === Events ===
@@ -190,6 +201,25 @@ public struct ProofAutoApprovedEvent has copy, drop {
     bounty_id: ID,
     hunter: address,
     approved_at: u64,
+}
+
+public struct ArbitratorSetEvent has copy, drop {
+    bounty_id: ID,
+    arbitrator: address,
+    dispute_timeout_ms: u64,
+}
+
+public struct DisputeAutoResolvedEvent has copy, drop {
+    bounty_id: ID,
+    hunter: address,
+    resolved_at: u64,
+}
+
+public struct HunterWithdrawnEvent has copy, drop {
+    bounty_id: ID,
+    ticket_id: ID,
+    hunter: address,
+    stake_returned: u64,
 }
 
 // === Accessors ===
@@ -882,6 +912,36 @@ public fun set_review_period<T>(
     };
 }
 
+// === Arbitrator Config ===
+
+public fun set_arbitrator<T>(
+    bounty: &mut Bounty<T>,
+    arbitrator: address,
+    dispute_timeout_ms: u64,
+    ctx: &mut TxContext,
+) {
+    let sender = ctx.sender();
+    let bounty_id = object::id(bounty);
+    assert!(sender == bounty.creator, constants::e_not_creator());
+    assert!(bounty.status == constants::status_open(), constants::e_bounty_not_open());
+    assert!(bounty.active_claims == 0, constants::e_hunter_not_claimed());
+    assert!(arbitrator != bounty.creator, constants::e_creator_is_arbitrator());
+    assert!(arbitrator != @0x0, constants::e_creator_is_arbitrator());
+    assert!(dispute_timeout_ms >= constants::min_dispute_timeout(), constants::e_dispute_timeout_too_short());
+    assert!(dispute_timeout_ms <= constants::max_dispute_timeout(), constants::e_dispute_timeout_too_long());
+
+    let key = ArbitratorConfigKey {};
+    if (dynamic_field::exists_(&bounty.id, key)) {
+        let config = dynamic_field::borrow_mut<ArbitratorConfigKey, ArbitratorConfig>(&mut bounty.id, key);
+        config.arbitrator = arbitrator;
+        config.dispute_timeout_ms = dispute_timeout_ms;
+    } else {
+        dynamic_field::add(&mut bounty.id, key, ArbitratorConfig { arbitrator, dispute_timeout_ms });
+    };
+
+    event::emit(ArbitratorSetEvent { bounty_id, arbitrator, dispute_timeout_ms });
+}
+
 // === Proof Accessors ===
 
 public fun has_proof<T>(bounty: &Bounty<T>, hunter: address): bool {
@@ -895,6 +955,22 @@ public fun proof_status<T>(bounty: &Bounty<T>, hunter: address): u8 {
 
 public fun review_period<T>(bounty: &Bounty<T>): u64 {
     get_review_period(bounty)
+}
+
+public fun has_arbitrator<T>(bounty: &Bounty<T>): bool {
+    dynamic_field::exists_(&bounty.id, ArbitratorConfigKey {})
+}
+
+public fun arbitrator_address<T>(bounty: &Bounty<T>): address {
+    dynamic_field::borrow<ArbitratorConfigKey, ArbitratorConfig>(&bounty.id, ArbitratorConfigKey {}).arbitrator
+}
+
+public fun dispute_timeout<T>(bounty: &Bounty<T>): u64 {
+    if (dynamic_field::exists_(&bounty.id, ArbitratorConfigKey {})) {
+        dynamic_field::borrow<ArbitratorConfigKey, ArbitratorConfig>(&bounty.id, ArbitratorConfigKey {}).dispute_timeout_ms
+    } else {
+        constants::default_dispute_timeout()
+    }
 }
 
 // === Submit Proof ===
@@ -1056,6 +1132,15 @@ public fun dispute_rejection<T>(
     submission.resolved_at = 0;
 
     let event_reason = submission.dispute_reason;
+
+    // Store dispute timestamp for auto-resolve timeout
+    let ts_key = DisputeTimestampKey { hunter };
+    if (dynamic_field::exists_(&bounty.id, ts_key)) {
+        dynamic_field::borrow_mut<DisputeTimestampKey, DisputeTimestamp>(&mut bounty.id, ts_key).disputed_at = now;
+    } else {
+        dynamic_field::add(&mut bounty.id, ts_key, DisputeTimestamp { disputed_at: now });
+    };
+
     event::emit(DisputeRaisedEvent {
         bounty_id,
         hunter,
@@ -1077,7 +1162,14 @@ public fun resolve_dispute<T>(
     let sender = ctx.sender();
     let bounty_id = object::id(bounty);
 
-    assert!(sender == bounty.creator, constants::e_not_creator());
+    // Arbitrator auth: if set, arbitrator resolves; otherwise creator (backward compat)
+    let resolver = if (dynamic_field::exists_(&bounty.id, ArbitratorConfigKey {})) {
+        dynamic_field::borrow<ArbitratorConfigKey, ArbitratorConfig>(&bounty.id, ArbitratorConfigKey {}).arbitrator
+    } else {
+        bounty.creator
+    };
+    assert!(sender == resolver, constants::e_not_arbitrator());
+
     assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
         constants::e_bounty_not_active());
     assert!(dynamic_field::exists_(&bounty.id, ProofKey { hunter }), constants::e_no_proof_submitted());
@@ -1097,6 +1189,12 @@ public fun resolve_dispute<T>(
     // Must drop mutable borrow before inserting into approved_hunters
     if (approve) {
         vec_set::insert(&mut bounty.approved_hunters, hunter);
+    };
+
+    // Clean up dispute timestamp
+    let ts_key = DisputeTimestampKey { hunter };
+    if (dynamic_field::exists_(&bounty.id, ts_key)) {
+        dynamic_field::remove<DisputeTimestampKey, DisputeTimestamp>(&mut bounty.id, ts_key);
     };
 
     event::emit(DisputeResolvedEvent {
@@ -1143,4 +1241,108 @@ public fun auto_approve_proof<T>(
         hunter,
         approved_at: now,
     });
+}
+
+// === Auto-Resolve Dispute (timeout) ===
+
+public fun auto_resolve_dispute<T>(
+    bounty: &mut Bounty<T>,
+    hunter: address,
+    clock: &Clock,
+    _ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let bounty_id = object::id(bounty);
+
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    assert!(dynamic_field::exists_(&bounty.id, ProofKey { hunter }), constants::e_no_proof_submitted());
+    assert!(!vec_set::contains(&bounty.approved_hunters, &hunter), constants::e_already_approved());
+
+    // Get dispute timeout (custom or default)
+    let timeout = if (dynamic_field::exists_(&bounty.id, ArbitratorConfigKey {})) {
+        dynamic_field::borrow<ArbitratorConfigKey, ArbitratorConfig>(&bounty.id, ArbitratorConfigKey {}).dispute_timeout_ms
+    } else {
+        constants::default_dispute_timeout()
+    };
+
+    // Verify dispute timestamp exists and timeout has passed
+    let ts_key = DisputeTimestampKey { hunter };
+    assert!(dynamic_field::exists_(&bounty.id, ts_key), constants::e_no_dispute_timestamp());
+    let disputed_at = dynamic_field::borrow<DisputeTimestampKey, DisputeTimestamp>(&bounty.id, ts_key).disputed_at;
+    assert!(now >= disputed_at + timeout, constants::e_dispute_not_timed_out());
+
+    // Verify proof is in disputed state and auto-approve
+    let submission = dynamic_field::borrow_mut<ProofKey, ProofSubmission>(&mut bounty.id, ProofKey { hunter });
+    assert!(submission.status == constants::proof_disputed(), constants::e_proof_not_disputed());
+
+    submission.status = constants::proof_resolved_approved();
+    submission.resolved_by = @0x0;
+    submission.resolved_at = now;
+
+    // Clean up dispute timestamp
+    dynamic_field::remove<DisputeTimestampKey, DisputeTimestamp>(&mut bounty.id, ts_key);
+
+    // Add to approved hunters
+    vec_set::insert(&mut bounty.approved_hunters, hunter);
+
+    event::emit(DisputeAutoResolvedEvent { bounty_id, hunter, resolved_at: now });
+}
+
+// === Hunter Voluntary Withdrawal ===
+
+public fun withdraw_from_bounty<T>(
+    bounty: &mut Bounty<T>,
+    ticket: ClaimTicket,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let now = sui::clock::timestamp_ms(clock);
+    let hunter = ctx.sender();
+    let bounty_id = object::id(bounty);
+
+    assert!(ticket.bounty_id == bounty_id, constants::e_ticket_bounty_mismatch());
+    assert!(ticket.hunter == hunter, constants::e_not_ticket_owner());
+    assert!(bounty.status == constants::status_open() || bounty.status == constants::status_claimed(),
+        constants::e_bounty_not_active());
+    assert!(now < bounty.deadline + bounty.grace_period, constants::e_deadline_passed());
+
+    // Cannot withdraw if approved — should claim reward instead
+    assert!(!vec_set::contains(&bounty.approved_hunters, &hunter), constants::e_hunter_is_approved());
+
+    // Only allow withdrawal if: no proof, or proof is rejected/resolved_rejected
+    if (dynamic_field::exists_(&bounty.id, ProofKey { hunter })) {
+        let proof_st = dynamic_field::borrow<ProofKey, ProofSubmission>(&bounty.id, ProofKey { hunter }).status;
+        assert!(
+            proof_st == constants::proof_rejected() || proof_st == constants::proof_resolved_rejected(),
+            constants::e_hunter_has_active_proof(),
+        );
+        // Clean up proof DF
+        dynamic_field::remove<ProofKey, ProofSubmission>(&mut bounty.id, ProofKey { hunter });
+    };
+
+    // Clean up dispute timestamp if exists
+    let ts_key = DisputeTimestampKey { hunter };
+    if (dynamic_field::exists_(&bounty.id, ts_key)) {
+        dynamic_field::remove<DisputeTimestampKey, DisputeTimestamp>(&mut bounty.id, ts_key);
+    };
+
+    // Return stake to hunter (NOT to creator — this is voluntary, not punishment)
+    let stake_amount = ticket.stake_amount;
+    if (stake_amount > 0) {
+        escrow::release_to(&mut bounty.stake_pool, stake_amount, hunter, ctx);
+    };
+
+    resolve_claim(bounty, hunter, false);
+
+    let tid = object::id(&ticket);
+    event::emit(HunterWithdrawnEvent {
+        bounty_id,
+        ticket_id: tid,
+        hunter,
+        stake_returned: stake_amount,
+    });
+
+    let ClaimTicket { id, bounty_id: _, hunter: _, stake_amount: _, claimed_at: _ } = ticket;
+    object::delete(id);
 }

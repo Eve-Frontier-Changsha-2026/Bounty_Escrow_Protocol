@@ -93,3 +93,18 @@ public fun e_dispute_reason_empty(): u64 { 48 }
 public fun e_resubmit_exhausted(): u64 { 49 }
 public fun e_reason_too_long(): u64 { 50 }
 public fun e_review_window_expired(): u64 { 51 }
+
+// === v4 Arbitrator / Withdraw 錯誤碼 ===
+public fun e_not_arbitrator(): u64 { 52 }
+public fun e_creator_is_arbitrator(): u64 { 53 }
+public fun e_dispute_timeout_too_short(): u64 { 55 }
+public fun e_dispute_timeout_too_long(): u64 { 56 }
+public fun e_dispute_not_timed_out(): u64 { 57 }
+public fun e_hunter_has_active_proof(): u64 { 58 }
+public fun e_hunter_is_approved(): u64 { 59 }
+public fun e_no_dispute_timestamp(): u64 { 60 }
+
+// === Dispute timeout ===
+public fun default_dispute_timeout(): u64 { 604_800_000 }   // 7 days
+public fun min_dispute_timeout(): u64 { 86_400_000 }        // 1 day
+public fun max_dispute_timeout(): u64 { 2_592_000_000 }     // 30 days

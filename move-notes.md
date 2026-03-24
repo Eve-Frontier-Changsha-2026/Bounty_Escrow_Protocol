@@ -1,5 +1,51 @@
 # Move Notes — Bounty Escrow Protocol
 
+## 2026-03-24: v4 Dispute Fairness — Arbitrator + Auto-Resolve + Withdraw
+
+**目的：** 修復 `resolve_dispute` 球員兼裁判問題。Creator 不再自己裁決 dispute，改由獨立仲裁者或 timeout 自動 approve。Hunter 可主動退出拿回 stake。
+
+**改動：**
+
+### 新增 structs（Dynamic Fields）
+- `ArbitratorConfigKey {}` → `ArbitratorConfig { arbitrator, dispute_timeout_ms }` — 每個 bounty 可選設定
+- `DisputeTimestampKey { hunter }` → `DisputeTimestamp { disputed_at }` — 記錄 dispute 發起時間，供 auto-resolve 驗證 timeout
+
+### 新增 functions
+| Function | 說明 |
+|----------|------|
+| `set_arbitrator<T>` | Creator 設定仲裁者 + timeout（OPEN + 0 claims 才能設，不可設自己） |
+| `auto_resolve_dispute<T>` | Permissionless，任何人可呼叫，dispute timeout 到期自動 approve hunter |
+| `withdraw_from_bounty<T>` | Hunter 主動退出，stake 退回 hunter（vs `abandon` 沒收給 creator） |
+| `has_arbitrator<T>` / `arbitrator_address<T>` / `dispute_timeout<T>` | Accessors |
+
+### 修改 functions
+- `dispute_rejection<T>` — 加寫 `DisputeTimestampKey` DF
+- `resolve_dispute<T>` — auth 改為 arbitrator (有設定時) / creator (fallback)，清理 DisputeTimestamp DF
+
+### 新增 constants
+- Error codes: 52-60（`e_not_arbitrator`, `e_creator_is_arbitrator`, `e_dispute_timeout_too_short/long`, `e_dispute_not_timed_out`, `e_hunter_has_active_proof`, `e_hunter_is_approved`, `e_no_dispute_timestamp`）
+- Timeout: default 7 days, min 1 day, max 30 days
+
+### 新增 events
+- `ArbitratorSetEvent`, `DisputeAutoResolvedEvent`, `HunterWithdrawnEvent`
+
+**設計決策：**
+- DF 擴展模式（與 v3 ProofKey/ReviewConfigKey 一致），無 struct layout 變更
+- 向後相容：舊 bounty 無 ArbitratorConfig → creator resolve（現有行為不變）
+- `withdraw` 只在 proof 為 `rejected`/`resolved_rejected`/無 proof 時允許（防 submit 垃圾 → dispute → 撈 stake）
+- `withdraw` 有 deadline+grace_period guard（expire 後 stake_pool 已清空）
+- Arbitrator 可與 verifier 相同（不同角色）
+
+**測試：** 131 tests all passed（含 1 個 test 更新 expected error code 13→52）。
+
+**已知風險：**
+- `dispute_timeout_ms` 可能 > `grace_period`，導致 auto-resolve 在 expire 前來不及觸發。UI 應警告。
+- 無仲裁者防串通機制（仲裁者公開透明，hunter claim 前自行判斷）
+
+**後續：** 寫 v4 tests (~27 scenarios) → frontend 整合（`useArbitratorConfig`, `useDisputeTimestamp` hooks + UI）
+
+---
+
 ## 2026-03-23: Testnet v3 Upgrade — Dispute Resolution
 
 **Tx Digest:** `FexXFYE6Np4zF2wjWrzGWmRNpjs21syDbBFW3uDuQ9iR`
