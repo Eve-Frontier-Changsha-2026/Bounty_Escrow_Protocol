@@ -68,6 +68,10 @@ public fun post_intel<T>(
         bounty_escrow::bounty::status(bounty) == constants::status_claimed(),
         constants::e_bounty_not_active());
 
+    // Validate hunter has active claim
+    assert!(bounty_escrow::bounty::is_active_hunter(bounty, hunter),
+        constants::e_hunter_not_claimed());
+
     // Validate payload
     let payload_size = encrypted_payload.length();
     assert!(payload_size > 0, constants::e_intel_payload_empty());
@@ -139,11 +143,11 @@ entry fun seal_approve(id: vector<u8>, receipt: &ViewerReceipt) {
     // Verify the Seal namespace ID starts with the bounty_id bytes
     let bounty_id_bytes = object::id_to_bytes(&receipt.bounty_id);
     let bounty_id_len = bounty_id_bytes.length();
-    assert!(id.length() >= bounty_id_len, 0);
+    assert!(id.length() >= bounty_id_len, constants::e_seal_namespace_too_short());
 
     let mut i = 0;
     while (i < bounty_id_len) {
-        assert!(id[i] == bounty_id_bytes[i], 0);
+        assert!(id[i] == bounty_id_bytes[i], constants::e_seal_namespace_mismatch());
         i = i + 1;
     };
     // Seal key server is now authorized to release decryption key to receipt.viewer

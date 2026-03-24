@@ -39,6 +39,6 @@ public(package) fun cap_id(cap: &VerifierCap): ID {
 
 /// Destroy a VerifierCap. Caller must verify bounty is in terminal state before calling.
 public(package) fun destroy_cap(cap: VerifierCap) {
-    let VerifierCap { id, bounty_id: _ } = cap;
-    object::delete(id);
+    let VerifierCap { id, .. } = cap;
+    id.delete();
 }

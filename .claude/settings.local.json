@@ -25,7 +25,14 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(grep -rn \"queryEvents\\\\|listEvents\\\\|getEvents\" /Users/ramonliao/Documents/Code/Project/Web3/Hackathon/2026_HoH_SUI_HackerHouse_Changsha/EVE_Frontier/build/projects/Bounty_Escrow_Protocol/frontend/node_modules/@mysten/sui/dist/grpc/*.mjs)",
       "Bash(python3 -m json.tool)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(python3 -c \"import nacl; from Crypto.Hash import keccak; print\\(''''deps ok''''\\)\")",
+      "Bash(pip3 list:*)",
+      "Bash(pip3 install:*)",
+      "Bash(grep -A2 \"debug_capture\\\\|BOUNTY\\\\|ASSEMBLY\\\\|0x[a-f0-9]\\\\{40,\\\\}\")",
+      "Bash(node scripts/gen_test_vectors.mjs delivery 0x90c5264c9da2b340fdc9fbd15ad3f0a181a57afa7ae55b15a3c5dce6b31f45c8)",
+      "Bash(node:*)"
     ]
   },
   "enabledPlugins": {

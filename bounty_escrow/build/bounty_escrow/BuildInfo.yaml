@@ -26,3 +26,4 @@ compiled_package_info:
 dependencies:
   - MoveStdlib
   - Sui
+  - world

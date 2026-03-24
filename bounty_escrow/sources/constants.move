@@ -166,3 +166,8 @@ public fun e_not_assembly_owner(): u64 { 87 }
 public fun e_delivery_quantity_insufficient(): u64 { 88 }
 public fun e_delivery_item_mismatch(): u64 { 89 }
 public fun e_delivery_target_mismatch(): u64 { 90 }
+
+// === v5 Seal Error Codes ===
+public fun e_seal_namespace_too_short(): u64 { 91 }
+public fun e_seal_namespace_mismatch(): u64 { 92 }
+public fun e_oracle_pubkey_invalid(): u64 { 93 }

@@ -23,6 +23,7 @@ public struct OracleRegistry has key {
 
 public struct OracleInfo has copy, drop, store {
     name: std::string::String,
+    pubkey: vector<u8>,  // Ed25519 public key bound at registration
     active: bool,
     registered_at: u64,
 }
@@ -68,20 +69,23 @@ public fun create_registry(clock: &Clock, ctx: &mut TxContext): OracleRegistry {
     registry
 }
 
-/// Register an oracle address. Admin only.
+/// Register an oracle address with its Ed25519 public key. Admin only.
 public fun register_oracle(
     registry: &mut OracleRegistry,
     oracle_address: address,
     name: std::string::String,
+    pubkey: vector<u8>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
     assert!(ctx.sender() == registry.admin, constants::e_not_registry_admin());
     assert!(!vec_map::contains(&registry.oracles, &oracle_address),
         constants::e_oracle_already_registered());
+    assert!(pubkey.length() == 32, constants::e_invalid_attestation());
 
     vec_map::insert(&mut registry.oracles, oracle_address, OracleInfo {
         name,
+        pubkey,
         active: true,
         registered_at: sui::clock::timestamp_ms(clock),
     });
@@ -119,20 +123,29 @@ public fun is_active_oracle(registry: &OracleRegistry, addr: address): bool {
 
 public fun admin(registry: &OracleRegistry): address { registry.admin }
 
+/// Get the registered pubkey for an oracle address. Aborts if not registered.
+public fun oracle_pubkey(registry: &OracleRegistry, addr: &address): &vector<u8> {
+    &vec_map::get(&registry.oracles, addr).pubkey
+}
+
 // === Attestation Verification ===
 
-/// Verify Ed25519 signature over a message.
-/// Message should be: sha3_256(bcs-encoded attestation data).
-/// Returns true if signature is valid AND oracle is active.
+/// Verify Ed25519 signature over a message. Aborts on failure.
+/// Uses the pubkey registered for oracle_address — no caller-supplied key.
+/// Message is hashed with keccak256 before Ed25519 verification.
 public fun verify_attestation(
-    _registry: &OracleRegistry,
+    registry: &OracleRegistry,
     message: &vector<u8>,
     signature: &vector<u8>,
-    oracle_pubkey: &vector<u8>,
-): bool {
-    // Hash the message with keccak256 for Ed25519
+    oracle_address: address,
+) {
+    assert!(is_active_oracle(registry, oracle_address), constants::e_oracle_not_active());
+    let pubkey = &vec_map::get(&registry.oracles, &oracle_address).pubkey;
     let msg_hash = hash::keccak256(message);
-    ed25519::ed25519_verify(signature, oracle_pubkey, &msg_hash)
+    assert!(
+        ed25519::ed25519_verify(signature, pubkey, &msg_hash),
+        constants::e_invalid_attestation(),
+    );
 }
 
 // === Nonce replay protection (on Bounty UID) ===
@@ -166,4 +179,11 @@ public fun decode_attestation(data: &vector<u8>): (address, address, u64, u64, a
     let timestamp = bcs_data.peel_u64();
     let nonce = bcs_data.peel_u64();
     (bounty_id, hunter, item_type_id, quantity, assembly_id, timestamp, nonce)
+}
+
+// === Test Helpers ===
+
+#[test_only]
+public fun share_registry_for_testing(registry: OracleRegistry) {
+    transfer::share_object(registry);
 }

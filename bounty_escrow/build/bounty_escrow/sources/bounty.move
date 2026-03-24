@@ -239,6 +239,11 @@ public fun ticket_bounty_id(ticket: &ClaimTicket): ID { ticket.bounty_id }
 public fun ticket_hunter(ticket: &ClaimTicket): address { ticket.hunter }
 public fun ticket_stake_amount(ticket: &ClaimTicket): u64 { ticket.stake_amount }
 
+/// Check if an address is an active hunter (has an active claim).
+public fun is_active_hunter<T>(bounty: &Bounty<T>, hunter: address): bool {
+    vec_map::contains(&bounty.active_hunter_stakes, &hunter)
+}
+
 // === v5 Package-level Accessors ===
 
 /// Expose UID for DF read from other package modules
@@ -615,8 +620,8 @@ public fun claim_reward_bounty<T>(
         stake_returned: stake_amount,
     });
 
-    let ClaimTicket { id, bounty_id: _, hunter: _, stake_amount: _, claimed_at: _ } = ticket;
-    object::delete(id);
+    let ClaimTicket { id, .. } = ticket;
+    id.delete();
 }
 
 public fun claim_reward<T>(
@@ -669,8 +674,8 @@ public fun abandon_bounty<T>(
         forfeited_stake: stake_amount,
     });
 
-    let ClaimTicket { id, bounty_id: _, hunter: _, stake_amount: _, claimed_at: _ } = ticket;
-    object::delete(id);
+    let ClaimTicket { id, .. } = ticket;
+    id.delete();
 }
 
 public fun abandon<T>(
@@ -767,8 +772,8 @@ public fun withdraw_penalty_bounty<T>(
         penalty_received: penalty,
     });
 
-    let ClaimTicket { id, bounty_id: _, hunter: _, stake_amount: _, claimed_at: _ } = ticket;
-    object::delete(id);
+    let ClaimTicket { id, .. } = ticket;
+    id.delete();
 }
 
 public fun withdraw_penalty<T>(
@@ -887,8 +892,8 @@ public fun destroy_ticket_bounty<T>(
     let ticket_id = object::id(&ticket);
     let bounty_id = ticket.bounty_id;
 
-    let ClaimTicket { id, bounty_id: _, hunter: _, stake_amount: _, claimed_at: _ } = ticket;
-    object::delete(id);
+    let ClaimTicket { id, .. } = ticket;
+    id.delete();
 
     event::emit(TicketDestroyed { bounty_id, ticket_id });
 }
@@ -1377,6 +1382,6 @@ public fun withdraw_from_bounty<T>(
         stake_returned: stake_amount,
     });
 
-    let ClaimTicket { id, bounty_id: _, hunter: _, stake_amount: _, claimed_at: _ } = ticket;
-    object::delete(id);
+    let ClaimTicket { id, .. } = ticket;
+    id.delete();
 }

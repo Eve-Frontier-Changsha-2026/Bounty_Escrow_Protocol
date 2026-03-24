@@ -1,5 +1,44 @@
 # Move Notes — Bounty Escrow Protocol
 
+## 2026-03-25: Red Team Round 12 — Verify Module Attacks (14 tests)
+
+**目的：** 對 v5 auto-verification 模組進行對抗性安全測試，覆蓋 verify_kill、oracle、intel_escrow、seal_approve。
+
+**結果：** 0 exploits / 2 by-design / 12 defended — 215 total tests, zero regression
+
+**測試檔案：** `tests/red-team/red_team_round_12_verify_attacks.move`
+
+### 攻擊覆蓋
+
+| Test | Category | Target | Result |
+|------|----------|--------|--------|
+| 12a | Identity theft — stolen kill credit | verify_kill | DEFENDED (e_not_killer) |
+| 12b | Cross-bounty killmail reuse | verify_kill | BY DESIGN (per-bounty replay) |
+| 12c | Front-run verify — stolen character | verify_kill | DEFENDED (e_character_mismatch) |
+| 12d | Oracle admin impersonation (register) | oracle | DEFENDED (e_not_registry_admin) |
+| 12e | Oracle admin impersonation (deactivate) | oracle | DEFENDED (e_not_registry_admin) |
+| 12f | Oracle double registration | oracle | DEFENDED (e_oracle_already_registered) |
+| 12g | Intel slot griefing | intel_escrow | BY DESIGN (stake deterrent) |
+| 12h | Non-creator confirms intel | intel_escrow | DEFENDED (e_not_intel_creator) |
+| 12i | Double confirm intel | intel_escrow | DEFENDED (e_intel_already_confirmed) |
+| 12j | Seal namespace too short | intel_escrow | DEFENDED (e_seal_namespace_too_short) |
+| 12k | Seal namespace wrong prefix | intel_escrow | DEFENDED (e_seal_namespace_mismatch) |
+| 12l | Double auto-approve (2 killmails) | verify_kill + bounty | DEFENDED (e_already_approved) |
+| 12m | Verify on cancelled bounty | verify_kill + bounty | DEFENDED (e_bounty_not_active) |
+| 12n | Oracle invalid pubkey length | oracle | DEFENDED (e_invalid_attestation) |
+
+### BY DESIGN 說明
+
+- **12b 跨 bounty killmail 重用：** `UsedKillmailKey` 是 per-bounty DF，同一個 kill 可滿足多個獨立 bounty。合理設計。
+- **12g Intel 插槽 griefing：** 攻擊者需先 claim（付 stake），post 垃圾 intel 佔據 singleton slot。stake 是 deterrent，creator 可走 dispute 流程。
+
+### 已知 gap
+
+- verify_delivery / verify_build 的 oracle-dependent 攻擊路徑（cross-bounty attestation replay、forged attestation field swapping）需要 pre-computed Ed25519 簽名，目前無法測試。
+- 這些模組的 pre-signature 檢查（task type、active hunter、oracle active）已在 `test_verify_delivery.move` / `test_verify_build.move` 覆蓋。
+
+---
+
 ## 2026-03-24: Testnet v4 Upgrade — Dispute Fairness
 
 | Item | Value |

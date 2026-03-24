@@ -3,7 +3,4 @@ name = "bounty_escrow"
 edition = "2024"
 
 [dependencies]
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
-
-[addresses]
-bounty_escrow = "0x0"
+world = { local = "../../Wreckage_Insurance_Protocol/contracts/world-contracts/contracts/world" }

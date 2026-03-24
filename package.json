@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "@noble/ed25519": "^3.0.1",
+    "@noble/hashes": "^2.0.1"
+  }
+}

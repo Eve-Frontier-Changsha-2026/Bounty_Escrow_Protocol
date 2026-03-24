@@ -1,6 +1,6 @@
 module bounty_escrow::escrow;
 
-use sui::balance::{Self, Balance};
+use sui::balance::Balance;
 use sui::coin::{Self, Coin};
 
 /// Lock `amount` from `coin` into `balance`. Returns change back as Coin.
@@ -10,10 +10,10 @@ public(package) fun lock<T>(
     amount: u64,
     ctx: &mut TxContext,
 ): Coin<T> {
-    let mut coin_bal = coin::into_balance(coin);
-    let locked = balance::split(&mut coin_bal, amount);
-    balance::join(bal, locked);
-    coin::from_balance(coin_bal, ctx)
+    let mut coin_bal = coin.into_balance();
+    let locked = coin_bal.split(amount);
+    bal.join(locked);
+    coin_bal.into_coin(ctx)
 }
 
 /// Release `amount` from `balance` and send as Coin to `recipient`.
@@ -33,7 +33,7 @@ public(package) fun release_all<T>(
     recipient: address,
     ctx: &mut TxContext,
 ) {
-    let amount = balance::value(bal);
+    let amount = bal.value();
     if (amount > 0) {
         release_to(bal, amount, recipient, ctx);
     };
@@ -45,8 +45,8 @@ public(package) fun transfer_between<T>(
     to: &mut Balance<T>,
     amount: u64,
 ) {
-    let chunk = balance::split(from, amount);
-    balance::join(to, chunk);
+    let chunk = from.split(amount);
+    to.join(chunk);
 }
 
 /// Calculate cleanup reward using u128 intermediate to prevent overflow.
