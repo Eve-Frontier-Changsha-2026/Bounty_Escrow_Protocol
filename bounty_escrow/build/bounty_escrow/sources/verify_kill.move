@@ -53,6 +53,9 @@ public fun verify_kill<T>(
     assert!(task_type::get_task_type(bounty) == constants::task_type_kill(),
         constants::e_wrong_task_type());
 
+    // 1b. Block auto-verify if criteria are encrypted
+    assert!(!task_type::is_criteria_encrypted(bounty), constants::e_criteria_encrypted_manual_only());
+
     // 2. Hunter must be an active claimer
     assert!(bounty::is_active_hunter(bounty, hunter),
         constants::e_hunter_not_active());
@@ -91,6 +94,15 @@ public fun verify_kill<T>(
             assert!(killmail.loss_type() == killmail::structure(),
                 constants::e_loss_type_mismatch());
         };
+    };
+
+    // 7b. Target victim filter (if set)
+    if (task_type::has_target_victim(bounty)) {
+        let target = task_type::borrow_target_victim(bounty);
+        assert!(
+            in_game_id::item_id(&killmail.victim_id()) == task_type::target_victim_id(target),
+            constants::e_victim_mismatch(),
+        );
     };
 
     // 8. Killmail replay protection

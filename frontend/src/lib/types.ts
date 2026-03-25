@@ -56,6 +56,53 @@ export interface ParsedProofSubmission {
   hasResubmitted: boolean;
 }
 
+// === v5 Task Type ===
+
+export interface TaskTypeConfig {
+  taskType: number;
+  verificationMode: number;
+  createdAt: number;
+}
+
+export interface KillCriteria {
+  solarSystemId: number;
+  lossType: number;
+  minKills: number;
+}
+
+export interface DeliveryCriteria {
+  itemTypeId: number;
+  minQuantity: number;
+  targetAssemblyId: string; // address hex
+}
+
+export interface BuildCriteria {
+  assemblyTypeId: number;
+  solarSystemId: number;
+}
+
+// === v7 Encrypted Details ===
+
+export interface TargetVictim {
+  victimId: number;
+}
+
+export interface EncryptionState {
+  isEncrypted: boolean;
+  encryptedAt: number;
+}
+
+export interface EncryptedDetails {
+  encryptedPayload: Uint8Array;
+  createdAt: number;
+}
+
+export interface ParsedViewerReceipt {
+  id: string;
+  viewer: string;
+  bountyId: string;
+}
+
 export interface Toast {
   type: 'success' | 'error';
   message: string;

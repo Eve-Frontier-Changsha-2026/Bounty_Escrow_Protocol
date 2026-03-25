@@ -94,6 +94,51 @@ export const ERROR_MESSAGES: Record<number, string> = {
   58: 'Hunter is already approved',
   59: 'No dispute timestamp found',
   60: 'Cannot set arbitrator after claims',
+  // v5 task type
+  61: 'Invalid task type',
+  62: 'Task type already set',
+  63: 'Task type requires OPEN status',
+  64: 'Task type has active claims',
+  65: 'Wrong task type for this operation',
+  66: 'Criteria already set',
+  67: 'Missing required criteria',
+  // v5 kill verify
+  68: 'Not the killer in killmail',
+  69: 'Killmail too old',
+  70: 'Solar system mismatch',
+  71: 'Loss type mismatch',
+  72: 'Killmail already used',
+  73: 'Character mismatch',
+  // v5 oracle
+  74: 'Not registry admin',
+  75: 'Oracle not active',
+  76: 'Oracle already registered',
+  77: 'Invalid attestation',
+  78: 'Nonce already used',
+  79: 'Attestation bounty mismatch',
+  80: 'Attestation hunter mismatch',
+  // v5 intel
+  81: 'Intel payload too large',
+  82: 'Intel payload empty',
+  83: 'Intel already posted',
+  84: 'Intel not posted',
+  85: 'Not intel creator',
+  86: 'Intel already confirmed',
+  // v5 build/delivery
+  87: 'Not assembly owner',
+  88: 'Delivery quantity insufficient',
+  89: 'Delivery item mismatch',
+  90: 'Delivery target mismatch',
+  // v5 seal
+  91: 'Seal namespace too short',
+  92: 'Seal namespace mismatch',
+  93: 'Oracle pubkey invalid',
+  // v7
+  94: 'Target victim mismatch',
+  95: 'Encrypted details already set',
+  96: 'Encrypted details not set',
+  97: 'Encrypted payload too large (max 4KB)',
+  98: 'Criteria encrypted — manual verification only',
 };
 
 export const ProofStatus = {
@@ -125,6 +170,42 @@ export const PROOF_STATUS_COLOR: Record<number, string> = {
   15: 'text-eve-danger',
 };
 
+// === Task Types (v5) ===
+
+export const TaskType = {
+  CUSTOM: 0,
+  KILL: 1,
+  DELIVERY: 2,
+  BUILD: 3,
+  INTEL: 4,
+} as const;
+
+export type TaskTypeValue = (typeof TaskType)[keyof typeof TaskType];
+
+export const TASK_TYPE_LABEL: Record<number, string> = {
+  0: 'CUSTOM',
+  1: 'KILL',
+  2: 'DELIVERY',
+  3: 'BUILD',
+  4: 'INTEL',
+};
+
+export const TASK_TYPE_COLOR: Record<number, string> = {
+  0: 'text-eve-muted',
+  1: 'text-eve-danger',
+  2: 'text-eve-cyan',
+  3: 'text-eve-gold',
+  4: 'text-eve-accent',
+};
+
+export const TASK_TYPE_BG: Record<number, string> = {
+  0: 'bg-eve-muted/15 border-eve-muted/40',
+  1: 'bg-eve-danger/15 border-eve-danger/40',
+  2: 'bg-eve-cyan/15 border-eve-cyan/40',
+  3: 'bg-eve-gold/15 border-eve-gold/40',
+  4: 'bg-eve-accent/15 border-eve-accent/40',
+};
+
 export const MIST_PER_SUI = 1_000_000_000n;
 
 export const LIMITS = {
@@ -145,4 +226,5 @@ export const LIMITS = {
   DEFAULT_DISPUTE_TIMEOUT_MS: 604_800_000,
   MIN_DISPUTE_TIMEOUT_MS: 86_400_000,
   MAX_DISPUTE_TIMEOUT_MS: 2_592_000_000,
+  MAX_ENCRYPTED_DETAILS_SIZE: 4096,
 } as const;

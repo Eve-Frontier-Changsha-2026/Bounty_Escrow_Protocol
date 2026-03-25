@@ -1,5 +1,9 @@
-// v6 — latest function call target
+// v7 — latest function call target
 export const PACKAGE_ID =
+  '0xc27986d5da78ffda924f420e2e22381a2a5dc45c67f4ec28b6da3407e2dadded';
+
+// v6 — (no new types defined in v6)
+export const V6_PACKAGE_ID =
   '0x68295e2919455c667f73f436c5594a22c4eed2cd3a96d12b96eb52502a00b933';
 
 // v1 — original package (Bounty, ClaimTicket, VerifierCap, BountyCreated types)
@@ -21,6 +25,10 @@ export const V4_PACKAGE_ID =
 export const V5_PACKAGE_ID =
   '0xf324f9a1ca201524bffb3041fda191582f5b5aa4bf3aa327900d8cf6e4fe45ca';
 
+// v7 — EncryptedDetailsKey, BountyViewerReceipt, TargetVictimKey, EncryptionStateKey,
+//       EncryptedDetailsSetEvent, ViewerReceiptMintedEvent types
+export const V7_PACKAGE_ID = PACKAGE_ID;
+
 export const ORACLE_REGISTRY_ID =
   '0x0af29639026b162193914095a729f4fd3d1c1360df9301ba9261ce3390e79231';
 
@@ -32,6 +40,7 @@ export const MODULE = {
   verifyKill: `${PACKAGE_ID}::verify_kill`,
   verifyDelivery: `${PACKAGE_ID}::verify_delivery`,
   verifyBuild: `${PACKAGE_ID}::verify_build`,
+  encryptedDetails: `${PACKAGE_ID}::encrypted_details`,
 } as const;
 
 export const DEFAULT_COIN_TYPE = '0x2::sui::SUI';

@@ -317,12 +317,13 @@ public fun create_bounty<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): Coin<T> {
-    let (change, _id) = create_bounty_internal(
+    let (bounty, change, _id) = create_bounty_internal(
         title, description, coin,
         reward_amount, required_stake, max_claims,
         deadline, grace_period, cleanup_reward_bps,
         verifier_addr, clock, ctx,
     );
+    transfer::share_object(bounty);
     change
 }
 
@@ -341,12 +342,43 @@ public fun create_bounty_with_id<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): (Coin<T>, ID) {
-    create_bounty_internal(
+    let (bounty, change, bounty_id) = create_bounty_internal(
         title, description, coin,
         reward_amount, required_stake, max_claims,
         deadline, grace_period, cleanup_reward_bps,
         verifier_addr, clock, ctx,
-    )
+    );
+    transfer::share_object(bounty);
+    (change, bounty_id)
+}
+
+/// Create bounty as owned object (not shared). Caller configures then shares.
+public fun create_bounty_owned<T>(
+    title: String,
+    description: String,
+    coin: Coin<T>,
+    reward_amount: u64,
+    required_stake: u64,
+    max_claims: u64,
+    deadline: u64,
+    grace_period: u64,
+    cleanup_reward_bps: u16,
+    verifier_addr: address,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): (Bounty<T>, Coin<T>) {
+    let (bounty, change, _id) = create_bounty_internal(
+        title, description, coin,
+        reward_amount, required_stake, max_claims,
+        deadline, grace_period, cleanup_reward_bps,
+        verifier_addr, clock, ctx,
+    );
+    (bounty, change)
+}
+
+/// Share a configured bounty. Call after all setup is done.
+public fun share_bounty<T>(bounty: Bounty<T>) {
+    transfer::share_object(bounty);
 }
 
 fun create_bounty_internal<T>(
@@ -362,7 +394,7 @@ fun create_bounty_internal<T>(
     verifier_addr: address,
     clock: &Clock,
     ctx: &mut TxContext,
-): (Coin<T>, ID) {
+): (Bounty<T>, Coin<T>, ID) {
     let now = sui::clock::timestamp_ms(clock);
     let sender = ctx.sender();
 
@@ -427,10 +459,7 @@ fun create_bounty_internal<T>(
         verifier: verifier_addr,
     });
 
-    // --- Share bounty ---
-    transfer::share_object(bounty);
-
-    (change, bounty_id)
+    (bounty, change, bounty_id)
 }
 
 public fun create<T>(

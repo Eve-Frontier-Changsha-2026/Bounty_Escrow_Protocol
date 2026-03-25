@@ -52,6 +52,9 @@ public fun verify_delivery<T>(
     assert!(task_type::get_task_type(bounty) == constants::task_type_delivery(),
         constants::e_wrong_task_type());
 
+    // 1b. Block auto-verify if criteria are encrypted
+    assert!(!task_type::is_criteria_encrypted(bounty), constants::e_criteria_encrypted_manual_only());
+
     // 2. Hunter must be an active claimer
     assert!(bounty::is_active_hunter(bounty, hunter),
         constants::e_hunter_not_active());

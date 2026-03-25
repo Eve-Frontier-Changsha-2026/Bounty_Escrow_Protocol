@@ -171,3 +171,13 @@ public fun e_delivery_target_mismatch(): u64 { 90 }
 public fun e_seal_namespace_too_short(): u64 { 91 }
 public fun e_seal_namespace_mismatch(): u64 { 92 }
 public fun e_oracle_pubkey_invalid(): u64 { 93 }
+
+// === v7 Error Codes ===
+public fun e_victim_mismatch(): u64 { 94 }
+public fun e_encrypted_details_already_set(): u64 { 95 }
+public fun e_encrypted_details_not_set(): u64 { 96 }
+public fun e_encrypted_payload_too_large(): u64 { 97 }
+public fun e_criteria_encrypted_manual_only(): u64 { 98 }
+
+// === v7 Limits ===
+public fun max_encrypted_details_size(): u64 { 4096 }
