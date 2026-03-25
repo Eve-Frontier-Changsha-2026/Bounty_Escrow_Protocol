@@ -293,4 +293,9 @@ public(package) fun borrow_target_victim<T>(bounty: &Bounty<T>): &TargetVictim {
     dynamic_field::borrow<TargetVictimKey, TargetVictim>(uid, TargetVictimKey())
 }
 
+/// Returns true if a target victim is set on this bounty.
+public fun has_target_victim<T>(bounty: &Bounty<T>): bool {
+    dynamic_field::exists_(bounty_escrow::bounty::uid(bounty), TargetVictimKey())
+}
+
 public fun target_victim_id(tv: &TargetVictim): u64 { tv.victim_id }
