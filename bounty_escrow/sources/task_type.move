@@ -40,6 +40,21 @@ public struct BuildCriteria has copy, drop, store {
     solar_system_id: u64,   // 0 = any
 }
 
+// === v7: Target Victim (separate DF, no BCS break to KillCriteria) ===
+
+public struct TargetVictimKey() has copy, drop, store;
+public struct TargetVictim has copy, drop, store {
+    victim_id: u64,
+}
+
+// === v7: Encryption State ===
+
+public struct EncryptionStateKey() has copy, drop, store;
+public struct EncryptionState has copy, drop, store {
+    is_encrypted: bool,
+    encrypted_at: u64,
+}
+
 // === Internal: task_type → verification_mode mapping ===
 
 fun verification_mode_for(task_type: u8): u8 {
@@ -150,6 +165,49 @@ public fun set_build_criteria<T>(
     });
 }
 
+/// Set target victim for KILL bounty. Creator only, requires KILL task type.
+public fun set_target_victim<T>(
+    bounty: &mut Bounty<T>,
+    victim_id: u64,
+    ctx: &mut TxContext,
+) {
+    assert!(ctx.sender() == bounty_escrow::bounty::creator(bounty), constants::e_not_creator());
+    assert!(bounty_escrow::bounty::status(bounty) == constants::status_open(),
+        constants::e_task_type_requires_open());
+    assert!(bounty_escrow::bounty::active_claims(bounty) == 0,
+        constants::e_task_type_has_active_claims());
+
+    let uid = bounty_escrow::bounty::uid_mut(bounty);
+    assert!(dynamic_field::exists_(uid, TaskTypeKey()), constants::e_missing_criteria());
+
+    let config = dynamic_field::borrow<TaskTypeKey, TaskTypeConfig>(uid, TaskTypeKey());
+    assert!(config.task_type == constants::task_type_kill(), constants::e_wrong_task_type());
+    assert!(!dynamic_field::exists_(uid, TargetVictimKey()), constants::e_criteria_already_set());
+
+    dynamic_field::add(uid, TargetVictimKey(), TargetVictim { victim_id });
+}
+
+/// Mark bounty criteria as encrypted. Creator only, one-time.
+public fun set_encryption_state<T>(
+    bounty: &mut Bounty<T>,
+    is_encrypted: bool,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    assert!(ctx.sender() == bounty_escrow::bounty::creator(bounty), constants::e_not_creator());
+    assert!(bounty_escrow::bounty::status(bounty) == constants::status_open(),
+        constants::e_task_type_requires_open());
+    assert!(bounty_escrow::bounty::active_claims(bounty) == 0,
+        constants::e_task_type_has_active_claims());
+    let uid = bounty_escrow::bounty::uid_mut(bounty);
+    assert!(!dynamic_field::exists_(uid, EncryptionStateKey()), constants::e_criteria_already_set());
+
+    dynamic_field::add(uid, EncryptionStateKey(), EncryptionState {
+        is_encrypted,
+        encrypted_at: sui::clock::timestamp_ms(clock),
+    });
+}
+
 // === Accessors (public, backward compat: no DF → CUSTOM) ===
 
 /// Returns task type. Defaults to CUSTOM if not set.
@@ -217,3 +275,22 @@ public fun delivery_target_assembly_id(c: &DeliveryCriteria): address { c.target
 
 public fun build_assembly_type_id(c: &BuildCriteria): u64 { c.assembly_type_id }
 public fun build_solar_system_id(c: &BuildCriteria): u64 { c.solar_system_id }
+
+/// Check if criteria are encrypted for this bounty.
+public fun is_criteria_encrypted<T>(bounty: &Bounty<T>): bool {
+    let uid = bounty_escrow::bounty::uid(bounty);
+    if (dynamic_field::exists_(uid, EncryptionStateKey())) {
+        dynamic_field::borrow<EncryptionStateKey, EncryptionState>(uid, EncryptionStateKey()).is_encrypted
+    } else {
+        false
+    }
+}
+
+/// Borrow target victim. Aborts if not set.
+public(package) fun borrow_target_victim<T>(bounty: &Bounty<T>): &TargetVictim {
+    let uid = bounty_escrow::bounty::uid(bounty);
+    assert!(dynamic_field::exists_(uid, TargetVictimKey()), constants::e_missing_criteria());
+    dynamic_field::borrow<TargetVictimKey, TargetVictim>(uid, TargetVictimKey())
+}
+
+public fun target_victim_id(tv: &TargetVictim): u64 { tv.victim_id }
