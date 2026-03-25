@@ -32,7 +32,15 @@
       "Bash(pip3 install:*)",
       "Bash(grep -A2 \"debug_capture\\\\|BOUNTY\\\\|ASSEMBLY\\\\|0x[a-f0-9]\\\\{40,\\\\}\")",
       "Bash(node scripts/gen_test_vectors.mjs delivery 0x90c5264c9da2b340fdc9fbd15ad3f0a181a57afa7ae55b15a3c5dce6b31f45c8)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(sort -k5 -rn)",
+      "Bash(python3 -c \":*)",
+      "Bash(xargs -I{} basename {} .move)",
+      "Bash(# Temporarily move Published.toml so fresh publish works\nmv Published.toml Published.toml.bak && sui client publish --with-unpublished-dependencies --gas-budget 500000000 2>&1)",
+      "Bash(V6=0x68295e2919455c667f73f436c5594a22c4eed2cd3a96d12b96eb52502a00b933)",
+      "Bash(REGISTRY=0x0af29639026b162193914095a729f4fd3d1c1360df9301ba9261ce3390e79231)",
+      "Bash(ORACLE_ADDR=0x1509b5fdf09296b2cf749a710e36da06f5693ccd5b2144ad643b3a895abcbc4c)",
+      "Bash(__NEW_LINE_e5dc6991e5f8c5e7__ sui:*)"
     ]
   },
   "enabledPlugins": {

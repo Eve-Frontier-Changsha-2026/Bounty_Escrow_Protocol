@@ -181,6 +181,13 @@ public fun decode_attestation(data: &vector<u8>): (address, address, u64, u64, a
     (bounty_id, hunter, item_type_id, quantity, assembly_id, timestamp, nonce)
 }
 
+// === Entry: create + share in one tx ===
+
+public fun create_and_share_registry(clock: &Clock, ctx: &mut TxContext) {
+    let registry = create_registry(clock, ctx);
+    transfer::share_object(registry);
+}
+
 // === Test Helpers ===
 
 #[test_only]

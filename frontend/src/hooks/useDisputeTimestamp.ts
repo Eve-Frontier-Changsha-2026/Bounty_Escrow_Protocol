@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { jsonRpcClient } from '../lib/rpc';
-import { PACKAGE_ID } from '../config/contracts';
+import { V4_PACKAGE_ID } from '../config/contracts';
 
 export interface DisputeTimestamp {
   disputedAt: number;
@@ -13,7 +13,7 @@ export function useDisputeTimestamp(bountyId: string | undefined, hunterAddress:
       const result = await jsonRpcClient.getDynamicFieldObject({
         parentId: bountyId!,
         name: {
-          type: `${PACKAGE_ID}::bounty::DisputeTimestampKey`,
+          type: `${V4_PACKAGE_ID}::bounty::DisputeTimestampKey`,
           value: { hunter: hunterAddress! },
         },
       });

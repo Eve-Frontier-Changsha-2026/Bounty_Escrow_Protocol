@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { jsonRpcClient } from '../lib/rpc';
-import { PACKAGE_ID } from '../config/contracts';
+import { V4_PACKAGE_ID } from '../config/contracts';
 
 export interface ArbitratorConfig {
   arbitrator: string;
@@ -14,7 +14,7 @@ export function useArbitratorConfig(bountyId: string | undefined) {
       const result = await jsonRpcClient.getDynamicFieldObject({
         parentId: bountyId!,
         name: {
-          type: `${PACKAGE_ID}::bounty::ArbitratorConfigKey`,
+          type: `${V4_PACKAGE_ID}::bounty::ArbitratorConfigKey`,
           value: {},
         },
       });
