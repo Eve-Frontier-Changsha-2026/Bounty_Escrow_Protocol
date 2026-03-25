@@ -22,6 +22,7 @@ function parseBountyFields(id: string, fields: Record<string, unknown>, coinType
     activeClaims: Number(fields.active_claims ?? 0),
     completedClaims: Number(fields.completed_claims ?? 0),
     coinType,
+    hunters: [],
   };
 }
 

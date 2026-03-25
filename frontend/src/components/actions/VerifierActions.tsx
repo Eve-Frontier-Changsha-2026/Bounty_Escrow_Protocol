@@ -86,11 +86,6 @@ export function VerifierActions({ bounty, verifierCap, onToast }: VerifierAction
     }
   }
 
-  /** Can verifier take action on this proof status? */
-  function canReview(status: number | undefined): boolean {
-    return status === ProofStatus.SUBMITTED || status === ProofStatus.SUBMITTED + 100; // RESUBMITTED is same status code as SUBMITTED after resubmit
-  }
-
   return (
     <div className="space-y-3">
       <h3 className="font-heading text-xs text-eve-cyan tracking-wider">VERIFIER ACTIONS</h3>
