@@ -524,3 +524,39 @@ fun test_verify_delivery_nonce_replay() {
     clock::destroy_for_testing(clock);
     ts::end(scenario);
 }
+
+// =====================================================================
+// v7: encrypted criteria blocks auto-verify
+// =====================================================================
+
+#[test, expected_failure(abort_code = 98)] // e_criteria_encrypted_manual_only
+fun test_verify_delivery_encrypted_criteria_blocked() {
+    let mut scenario = ts::begin(CREATOR);
+    let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
+    clock::set_for_testing(&mut clock, NOW);
+    setup_bounty(&mut scenario, &clock);
+    setup_delivery_task(&mut scenario, &clock);
+
+    // Set encryption state before hunter claims
+    ts::next_tx(&mut scenario, CREATOR);
+    {
+        let mut bounty = ts::take_shared<Bounty<SUI>>(&scenario);
+        task_type::set_encryption_state(&mut bounty, true, &clock, ts::ctx(&mut scenario));
+        ts::return_shared(bounty);
+    };
+
+    hunter_claim(&mut scenario, &clock);
+    setup_oracle_registry(&mut scenario, &clock);
+
+    ts::next_tx(&mut scenario, HUNTER);
+    let mut bounty = ts::take_shared<Bounty<SUI>>(&scenario);
+    let registry = ts::take_shared<oracle::OracleRegistry>(&scenario);
+    verify_delivery::verify_delivery(
+        &mut bounty, &registry, DUMMY_MSG, DUMMY_SIG, ORACLE_ADDR,
+        &clock, ts::ctx(&mut scenario),
+    );
+    ts::return_shared(bounty);
+    ts::return_shared(registry);
+    clock::destroy_for_testing(clock);
+    ts::end(scenario);
+}

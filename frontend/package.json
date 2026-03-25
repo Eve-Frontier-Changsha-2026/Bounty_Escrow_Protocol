@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@mysten/dapp-kit-react": "^2.0.1",
+    "@mysten/seal": "^1.1.1",
     "@mysten/sui": "^2.9.1",
     "@tanstack/react-query": "^5.91.3",
     "react": "^19.2.4",

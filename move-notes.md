@@ -1,5 +1,52 @@
 # Move Notes — Bounty Escrow Protocol
 
+## 2026-03-25: Testnet v7 Upgrade — Encrypted Bounty Details
+
+**Tx Digest:** `4ZvHvvUJEFygm1AfMEx4fFTNX3CbEuHHHiMcoGhi62pR`
+
+**目的：** 部署 v7 encrypted bounty details（Seal integration + composable create + target victim + encryption state）到 testnet。
+
+**部署資訊：**
+| 欄位 | 值 |
+|------|-----|
+| Network | testnet (epoch 1049) |
+| ORIGINAL_PACKAGE_ID (v1) | `0x8222b1e623985cf9ef25d6d60f8a812c24fb0ac81f8ab6db6929bde273e6cb16` |
+| V3_PACKAGE_ID | `0x76b952d0acf15742daadb76f6b1921442bafbd8201d5449d2e0a73056a7df39c` |
+| V5_PACKAGE_ID | `0x68295e2919455c667f73f436c5594a22c4eed2cd3a96d12b96eb52502a00b933` |
+| V7_PACKAGE_ID | `0xc27986d5da78ffda924f420e2e22381a2a5dc45c67f4ec28b6da3407e2dadded` |
+| UpgradeCap | `0x10e4164c6dae28a5a861865852c794c462f1085bf277219a4e7eac47bcc8b7e9` |
+| Version | 7 |
+| Modules | bounty, constants, display, encrypted_details, escrow, intel_escrow, oracle, task_type, verifier, verify_build, verify_delivery, verify_kill |
+| Gas Used | ~0.313 SUI |
+
+**v7 新增功能：**
+- `encrypted_details.move` (NEW) — Seal-encrypted bounty payload, BountyViewerReceipt, seal_approve_bounty
+- `task_type.move` — TargetVictimKey + EncryptionStateKey DFs
+- `bounty.move` — create_bounty_owned + share_bounty composable pattern
+- `verify_kill/delivery/build.move` — encryption guard (`is_criteria_encrypted` blocks auto-verify)
+- `constants.move` — error codes 94-98, max_encrypted_details_size
+
+**v7 新增 struct types（歸屬 V7_PACKAGE_ID）：**
+- `encrypted_details::EncryptedDetailsKey`
+- `encrypted_details::EncryptedDetails`
+- `encrypted_details::BountyViewerReceipt`
+- `encrypted_details::EncryptedDetailsSetEvent`
+- `encrypted_details::ViewerReceiptMintedEvent`
+- `task_type::TargetVictimKey`
+- `task_type::TargetVictim`
+- `task_type::EncryptionStateKey`
+- `task_type::EncryptionState`
+
+**前端注意：** 上述 v7 struct types 的 DF 查詢和 event 訂閱必須用 V7_PACKAGE_ID，不是 V5 或 ORIGINAL。
+
+**Code Review：** move-code-quality (0 critical) + sui-security-guard (0 findings) + sui-red-team (5/5 defended)
+
+**測試：** 265 tests all passed。
+
+**已知風險：** 無。upgrade policy 維持 compatible。
+
+---
+
 ## 2026-03-25: Red Team Round 12 — Verify Module Attacks (14 tests)
 
 **目的：** 對 v5 auto-verification 模組進行對抗性安全測試，覆蓋 verify_kill、oracle、intel_escrow、seal_approve。

@@ -616,3 +616,116 @@ fun test_verify_kill_then_claim_reward() {
     clock::destroy_for_testing(clock);
     ts::end(scenario);
 }
+
+// =====================================================================
+// v7: encrypted criteria blocks auto-verify
+// =====================================================================
+
+#[test, expected_failure(abort_code = 98)] // e_criteria_encrypted_manual_only
+fun test_verify_kill_encrypted_criteria_blocked() {
+    let mut scenario = ts::begin(CREATOR);
+    let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
+    clock::set_for_testing(&mut clock, NOW);
+    test_helpers::setup_world(&mut scenario);
+    let char_id = setup_character(&mut scenario, HUNTER, KILLER_GAME_ID as u32);
+    setup_bounty(&mut scenario, &clock);
+    setup_kill_task(&mut scenario, &clock, 0, 0);
+
+    // Set encryption state BEFORE hunter claims (requires 0 active_claims)
+    ts::next_tx(&mut scenario, CREATOR);
+    {
+        let mut bounty = ts::take_shared<Bounty<SUI>>(&scenario);
+        task_type::set_encryption_state(&mut bounty, true, &clock, ts::ctx(&mut scenario));
+        ts::return_shared(bounty);
+    };
+
+    hunter_claim(&mut scenario, HUNTER, &clock);
+    setup_killmail(&mut scenario, char_id, KILLMAIL_ITEM_ID, KILLER_GAME_ID, NOW + 1, SOLAR_SYSTEM_42, LOSS_SHIP);
+
+    ts::next_tx(&mut scenario, HUNTER);
+    let mut bounty = ts::take_shared<Bounty<SUI>>(&scenario);
+    let character = ts::take_shared_by_id<Character>(&scenario, char_id);
+    let killmail = ts::take_shared<Killmail>(&scenario);
+    verify_kill::verify_kill(&mut bounty, &killmail, &character, &clock, ts::ctx(&mut scenario));
+    ts::return_shared(bounty);
+    ts::return_shared(character);
+    ts::return_shared(killmail);
+    clock::destroy_for_testing(clock);
+    ts::end(scenario);
+}
+
+// =====================================================================
+// v7: target victim match
+// =====================================================================
+
+#[test]
+fun test_verify_kill_target_victim_match() {
+    let mut scenario = ts::begin(CREATOR);
+    let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
+    clock::set_for_testing(&mut clock, NOW);
+    test_helpers::setup_world(&mut scenario);
+    let char_id = setup_character(&mut scenario, HUNTER, KILLER_GAME_ID as u32);
+    setup_bounty(&mut scenario, &clock);
+
+    // Set KILL task + criteria + target victim = VICTIM_GAME_ID
+    ts::next_tx(&mut scenario, CREATOR);
+    {
+        let mut bounty = ts::take_shared<Bounty<SUI>>(&scenario);
+        task_type::set_task_type(&mut bounty, constants::task_type_kill(), &clock, ts::ctx(&mut scenario));
+        task_type::set_kill_criteria(&mut bounty, 0, 0, 1, ts::ctx(&mut scenario));
+        task_type::set_target_victim(&mut bounty, VICTIM_GAME_ID, ts::ctx(&mut scenario));
+        ts::return_shared(bounty);
+    };
+
+    hunter_claim(&mut scenario, HUNTER, &clock);
+    setup_killmail(&mut scenario, char_id, KILLMAIL_ITEM_ID, KILLER_GAME_ID, NOW + 1, SOLAR_SYSTEM_42, LOSS_SHIP);
+
+    ts::next_tx(&mut scenario, HUNTER);
+    let mut bounty = ts::take_shared<Bounty<SUI>>(&scenario);
+    let character = ts::take_shared_by_id<Character>(&scenario, char_id);
+    let killmail = ts::take_shared<Killmail>(&scenario);
+    verify_kill::verify_kill(&mut bounty, &killmail, &character, &clock, ts::ctx(&mut scenario));
+    ts::return_shared(bounty);
+    ts::return_shared(character);
+    ts::return_shared(killmail);
+    clock::destroy_for_testing(clock);
+    ts::end(scenario);
+}
+
+// =====================================================================
+// v7: target victim mismatch
+// =====================================================================
+
+#[test, expected_failure(abort_code = 94)] // e_victim_mismatch
+fun test_verify_kill_target_victim_mismatch() {
+    let mut scenario = ts::begin(CREATOR);
+    let mut clock = clock::create_for_testing(ts::ctx(&mut scenario));
+    clock::set_for_testing(&mut clock, NOW);
+    test_helpers::setup_world(&mut scenario);
+    let char_id = setup_character(&mut scenario, HUNTER, KILLER_GAME_ID as u32);
+    setup_bounty(&mut scenario, &clock);
+
+    // Set target victim to 9999 (won't match VICTIM_GAME_ID=5002)
+    ts::next_tx(&mut scenario, CREATOR);
+    {
+        let mut bounty = ts::take_shared<Bounty<SUI>>(&scenario);
+        task_type::set_task_type(&mut bounty, constants::task_type_kill(), &clock, ts::ctx(&mut scenario));
+        task_type::set_kill_criteria(&mut bounty, 0, 0, 1, ts::ctx(&mut scenario));
+        task_type::set_target_victim(&mut bounty, 9999, ts::ctx(&mut scenario));
+        ts::return_shared(bounty);
+    };
+
+    hunter_claim(&mut scenario, HUNTER, &clock);
+    setup_killmail(&mut scenario, char_id, KILLMAIL_ITEM_ID, KILLER_GAME_ID, NOW + 1, SOLAR_SYSTEM_42, LOSS_SHIP);
+
+    ts::next_tx(&mut scenario, HUNTER);
+    let mut bounty = ts::take_shared<Bounty<SUI>>(&scenario);
+    let character = ts::take_shared_by_id<Character>(&scenario, char_id);
+    let killmail = ts::take_shared<Killmail>(&scenario);
+    verify_kill::verify_kill(&mut bounty, &killmail, &character, &clock, ts::ctx(&mut scenario));
+    ts::return_shared(bounty);
+    ts::return_shared(character);
+    ts::return_shared(killmail);
+    clock::destroy_for_testing(clock);
+    ts::end(scenario);
+}
