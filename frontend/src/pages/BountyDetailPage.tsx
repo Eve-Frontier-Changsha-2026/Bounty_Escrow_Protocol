@@ -194,7 +194,7 @@ export function BountyDetailPage() {
                   <div className="grid grid-cols-3 gap-4 text-xs">
                     <div>
                       <span className="text-eve-sub">Solar System</span>
-                      <div className="text-eve-text mt-0.5 font-mono">{criteria.data.solarSystemId || 'Any'}</div>
+                      <div className="text-eve-text mt-0.5 font-mono">{criteria.data.solarSystemId === '0' ? 'Any' : criteria.data.solarSystemId}</div>
                     </div>
                     <div>
                       <span className="text-eve-sub">Loss Type</span>
@@ -230,7 +230,7 @@ export function BountyDetailPage() {
                     </div>
                     <div>
                       <span className="text-eve-sub">Solar System</span>
-                      <div className="text-eve-text mt-0.5 font-mono">{criteria.data.solarSystemId || 'Any'}</div>
+                      <div className="text-eve-text mt-0.5 font-mono">{criteria.data.solarSystemId === '0' ? 'Any' : criteria.data.solarSystemId}</div>
                     </div>
                   </div>
                 )}
@@ -422,6 +422,9 @@ export function BountyDetailPage() {
               arbitratorConfig={arbitratorConfig ?? null}
               disputeTimestamp={disputeTimestamp ?? null}
               onToast={setToast}
+              taskType={taskType}
+              targetVictimId={targetVictim?.victimId}
+              taskCreatedAt={taskTypeConfig?.createdAt}
             />
           )}
 

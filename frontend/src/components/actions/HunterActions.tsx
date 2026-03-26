@@ -14,7 +14,8 @@ import { buildDisputeRejection } from '../../lib/ptb/dispute-rejection';
 import { buildAutoApproveProof } from '../../lib/ptb/auto-approve';
 import { buildAutoResolveDispute } from '../../lib/ptb/auto-resolve-dispute';
 import { buildWithdrawFromBounty } from '../../lib/ptb/withdraw-from-bounty';
-import { BountyStatus, ProofStatus, LIMITS } from '../../lib/constants';
+import { BountyStatus, ProofStatus, TaskType, LIMITS } from '../../lib/constants';
+import { KillVerifyButton } from '../KillVerifyButton';
 import { mistToSui } from '../../lib/format';
 import type { ParsedBounty, ParsedClaimTicket, ParsedProofSubmission, Toast } from '../../lib/types';
 import type { ArbitratorConfig } from '../../hooks/useArbitratorConfig';
@@ -31,9 +32,13 @@ interface HunterActionsProps {
   arbitratorConfig: ArbitratorConfig | null;
   disputeTimestamp: DisputeTimestamp | null;
   onToast: (t: Toast) => void;
+  // Kill verify
+  taskType?: number;
+  targetVictimId?: string;
+  taskCreatedAt?: number;
 }
 
-export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodMs, arbitratorConfig, disputeTimestamp, onToast }: HunterActionsProps) {
+export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodMs, arbitratorConfig, disputeTimestamp, onToast, taskType, targetVictimId, taskCreatedAt }: HunterActionsProps) {
   const { execute, isPending } = useTransactionExecutor(INVALIDATE_KEYS);
 
   // Proof form state
@@ -224,6 +229,16 @@ export function HunterActions({ bounty, ticket, isApproved, proof, reviewPeriodM
             {isPending ? 'CLAIMING...' : 'CLAIM BOUNTY'}
           </Button>
         </div>
+      )}
+
+      {/* Kill Verify (auto-verification for KILL task type) */}
+      {ticket && taskType === TaskType.KILL && !isApproved && !proof && isActive && taskCreatedAt && (
+        <KillVerifyButton
+          bounty={bounty}
+          targetVictimId={targetVictimId}
+          createdAt={taskCreatedAt}
+          onToast={onToast}
+        />
       )}
 
       {/* Collect reward */}

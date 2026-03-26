@@ -9,7 +9,10 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Textarea } from '../components/ui/Textarea';
 import { TransactionToast } from '../components/ui/TransactionToast';
+import { CharacterSelect } from '../components/CharacterSelect';
 import { buildCreateBountyFull } from '../lib/ptb/create-full';
+import { resolveCharacterItemId } from '../lib/resolve-character';
+import { useCharacters } from '../hooks/useCharacters';
 import { buildSetEncryptedDetails } from '../lib/ptb/set-encrypted-details';
 import { sealEncrypt } from '../lib/seal';
 import { suiToMist, bpsToPercent } from '../lib/format';
@@ -63,7 +66,9 @@ export function CreateBountyPage() {
   const [killSolarSystem, setKillSolarSystem] = useState('');
   const [killLossType, setKillLossType] = useState('0');
   const [killMinKills, setKillMinKills] = useState('1');
-  const [killTargetVictim, setKillTargetVictim] = useState('');
+  // Character data for target victim picker
+  const { data: characters = [], isLoading: charactersLoading } = useCharacters();
+  const [selectedTargetCharId, setSelectedTargetCharId] = useState<string | null>(null);
 
   // Delivery criteria
   const [deliveryItemTypeId, setDeliveryItemTypeId] = useState('');
@@ -119,6 +124,12 @@ export function CreateBountyPage() {
       // === TX1: Create + configure + share ===
       setStep('tx1');
 
+      // Resolve target victim item_id if selected
+      let resolvedVictimId: string | undefined;
+      if (selectedTargetCharId) {
+        resolvedVictimId = await resolveCharacterItemId(selectedTargetCharId);
+      }
+
       const tx1 = buildCreateBountyFull({
         title,
         description,
@@ -133,7 +144,7 @@ export function CreateBountyPage() {
         killCriteria:
           taskType === TaskType.KILL
             ? {
-                solarSystemId: parseInt(killSolarSystem),
+                solarSystemId: killSolarSystem,
                 lossType: parseInt(killLossType),
                 minKills: parseInt(killMinKills),
               }
@@ -141,7 +152,7 @@ export function CreateBountyPage() {
         deliveryCriteria:
           taskType === TaskType.DELIVERY
             ? {
-                itemTypeId: parseInt(deliveryItemTypeId),
+                itemTypeId: deliveryItemTypeId,
                 minQuantity: parseInt(deliveryMinQuantity),
                 targetAssemblyId: deliveryTargetAssembly,
               }
@@ -149,11 +160,11 @@ export function CreateBountyPage() {
         buildCriteria:
           taskType === TaskType.BUILD
             ? {
-                assemblyTypeId: parseInt(buildAssemblyTypeId),
-                solarSystemId: parseInt(buildSolarSystem),
+                assemblyTypeId: buildAssemblyTypeId,
+                solarSystemId: buildSolarSystem,
               }
             : undefined,
-        targetVictimId: killTargetVictim ? parseInt(killTargetVictim) : undefined,
+        targetVictimId: resolvedVictimId,
         isEncrypted,
         sender: account.address,
       });
@@ -279,8 +290,6 @@ export function CreateBountyPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <Input
                     label="Solar System ID"
-                    type="number"
-                    min="0"
                     value={killSolarSystem}
                     onChange={(e) => setKillSolarSystem(e.target.value)}
                     placeholder="e.g. 30000142"
@@ -305,13 +314,13 @@ export function CreateBountyPage() {
                     onChange={(e) => setKillMinKills(e.target.value)}
                     required
                   />
-                  <Input
-                    label="Target Victim ID"
-                    type="number"
-                    min="0"
-                    value={killTargetVictim}
-                    onChange={(e) => setKillTargetVictim(e.target.value)}
-                    hint="Optional — specific target"
+                  <CharacterSelect
+                    label="Target Victim"
+                    characters={characters}
+                    loading={charactersLoading}
+                    value={selectedTargetCharId}
+                    onChange={setSelectedTargetCharId}
+                    hint="Optional — specific target to kill"
                   />
                 </div>
               </div>
@@ -326,8 +335,6 @@ export function CreateBountyPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <Input
                     label="Item Type ID"
-                    type="number"
-                    min="0"
                     value={deliveryItemTypeId}
                     onChange={(e) => setDeliveryItemTypeId(e.target.value)}
                     placeholder="e.g. 77302"
@@ -361,8 +368,6 @@ export function CreateBountyPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <Input
                     label="Assembly Type ID"
-                    type="number"
-                    min="0"
                     value={buildAssemblyTypeId}
                     onChange={(e) => setBuildAssemblyTypeId(e.target.value)}
                     placeholder="e.g. 84556"
@@ -370,8 +375,6 @@ export function CreateBountyPage() {
                   />
                   <Input
                     label="Solar System ID"
-                    type="number"
-                    min="0"
                     value={buildSolarSystem}
                     onChange={(e) => setBuildSolarSystem(e.target.value)}
                     placeholder="e.g. 30000142"
