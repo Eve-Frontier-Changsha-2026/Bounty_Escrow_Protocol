@@ -21,15 +21,15 @@ export function buildCreateBountyFull(args: {
   // Task type config
   taskType: number;
   // Criteria (depends on taskType)
-  killCriteria?: { solarSystemId: number; lossType: number; minKills: number };
+  killCriteria?: { solarSystemId: string; lossType: number; minKills: number };
   deliveryCriteria?: {
-    itemTypeId: number;
+    itemTypeId: string;
     minQuantity: number;
     targetAssemblyId: string;
   };
-  buildCriteria?: { assemblyTypeId: number; solarSystemId: number };
+  buildCriteria?: { assemblyTypeId: string; solarSystemId: string };
   // v7 optional
-  targetVictimId?: number;
+  targetVictimId?: string;
   isEncrypted?: boolean;
   // coin type
   coinType?: string;

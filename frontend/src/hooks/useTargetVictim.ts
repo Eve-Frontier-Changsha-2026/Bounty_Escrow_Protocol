@@ -25,7 +25,7 @@ export function useTargetVictim(bountyId: string | undefined) {
       const value = (rawValue.fields as Record<string, unknown> | undefined) ?? rawValue;
 
       return {
-        victimId: Number(value.victim_id ?? 0),
+        victimId: String(value.victim_id ?? '0'),
       };
     },
     enabled: !!bountyId,

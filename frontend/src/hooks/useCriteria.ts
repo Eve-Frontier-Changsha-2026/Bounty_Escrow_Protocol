@@ -52,7 +52,7 @@ async function fetchKillCriteria(parentId: string): Promise<CriteriaResult> {
   return {
     type: 'kill',
     data: {
-      solarSystemId: Number(value.solar_system_id ?? 0),
+      solarSystemId: String(value.solar_system_id ?? '0'),
       lossType: Number(value.loss_type ?? 0),
       minKills: Number(value.min_kills ?? 1),
     },
@@ -80,7 +80,7 @@ async function fetchDeliveryCriteria(parentId: string): Promise<CriteriaResult> 
   return {
     type: 'delivery',
     data: {
-      itemTypeId: Number(value.item_type_id ?? 0),
+      itemTypeId: String(value.item_type_id ?? '0'),
       minQuantity: Number(value.min_quantity ?? 0),
       targetAssemblyId: String(value.target_assembly_id ?? '0x0'),
     },
@@ -108,8 +108,8 @@ async function fetchBuildCriteria(parentId: string): Promise<CriteriaResult> {
   return {
     type: 'build',
     data: {
-      assemblyTypeId: Number(value.assembly_type_id ?? 0),
-      solarSystemId: Number(value.solar_system_id ?? 0),
+      assemblyTypeId: String(value.assembly_type_id ?? '0'),
+      solarSystemId: String(value.solar_system_id ?? '0'),
     },
   };
 }

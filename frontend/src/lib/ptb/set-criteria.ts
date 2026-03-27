@@ -4,10 +4,10 @@ import { PACKAGE_ID, DEFAULT_COIN_TYPE } from '../../config/contracts';
 /** Set KILL criteria on a bounty. Requires task type already set to KILL. */
 export function buildSetKillCriteria(args: {
   bountyId: string;
-  solarSystemId: number;
+  solarSystemId: string;
   lossType: number;
   minKills: number;
-  targetVictimId?: number;
+  targetVictimId?: string;
   coinType?: string;
 }) {
   const tx = new Transaction();
@@ -38,7 +38,7 @@ export function buildSetKillCriteria(args: {
 /** Set DELIVERY criteria on a bounty. Requires task type already set to DELIVERY. */
 export function buildSetDeliveryCriteria(args: {
   bountyId: string;
-  itemTypeId: number;
+  itemTypeId: string;
   minQuantity: number;
   targetAssemblyId: string;
   coinType?: string;
@@ -63,8 +63,8 @@ export function buildSetDeliveryCriteria(args: {
 /** Set BUILD criteria on a bounty. Requires task type already set to BUILD. */
 export function buildSetBuildCriteria(args: {
   bountyId: string;
-  assemblyTypeId: number;
-  solarSystemId: number;
+  assemblyTypeId: string;
+  solarSystemId: string;
   coinType?: string;
 }) {
   const tx = new Transaction();

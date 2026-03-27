@@ -65,26 +65,26 @@ export interface TaskTypeConfig {
 }
 
 export interface KillCriteria {
-  solarSystemId: number;
+  solarSystemId: string;
   lossType: number;
   minKills: number;
 }
 
 export interface DeliveryCriteria {
-  itemTypeId: number;
+  itemTypeId: string;
   minQuantity: number;
   targetAssemblyId: string; // address hex
 }
 
 export interface BuildCriteria {
-  assemblyTypeId: number;
-  solarSystemId: number;
+  assemblyTypeId: string;
+  solarSystemId: string;
 }
 
 // === v7 Encrypted Details ===
 
 export interface TargetVictim {
-  victimId: number;
+  victimId: string;
 }
 
 export interface EncryptionState {
