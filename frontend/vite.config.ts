@@ -11,6 +11,15 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
   },
+  server: {
+    proxy: {
+      '/eve-api': {
+        target: 'https://utopia.evedataco.re',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/eve-api/, ''),
+      },
+    },
+  },
   build: {
     rolldownOptions: {
       output: {

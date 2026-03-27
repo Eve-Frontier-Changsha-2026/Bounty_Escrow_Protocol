@@ -7,7 +7,7 @@ interface PanelProps {
 
 export function Panel({ children, className = '' }: PanelProps) {
   return (
-    <div className={`eve-panel rounded-lg p-4 sm:p-6 ${className}`}>
+    <div className={`eve-panel rounded-lg p-4 sm:p-6 overflow-visible ${className}`}>
       {children}
     </div>
   );

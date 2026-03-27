@@ -1,4 +1,4 @@
-const EVE_API_BASE = 'https://utopia.evedataco.re';
+const EVE_API_BASE = import.meta.env.DEV ? '/eve-api' : 'https://utopia.evedataco.re';
 
 export interface EveCharacter {
   id: string;         // Sui Object ID

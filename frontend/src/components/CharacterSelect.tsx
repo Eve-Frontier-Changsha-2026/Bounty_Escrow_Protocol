@@ -66,7 +66,7 @@ export function CharacterSelect({ label, characters, loading, value, onChange, h
           />
 
           {open && filtered.length > 0 && (
-            <ul className="absolute z-20 w-full mt-1 max-h-48 overflow-y-auto bg-eve-bg-2 border border-eve-panel-border rounded-lg shadow-lg">
+            <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto bg-eve-bg-2 border border-eve-panel-border rounded-lg shadow-lg">
               {filtered.map((c) => (
                 <li key={c.id}>
                   <button
@@ -83,7 +83,7 @@ export function CharacterSelect({ label, characters, loading, value, onChange, h
           )}
 
           {open && !loading && filtered.length === 0 && search.trim() && (
-            <div className="absolute z-20 w-full mt-1 bg-eve-bg-2 border border-eve-panel-border rounded-lg px-3 py-2 text-xs text-eve-sub">
+            <div className="absolute z-50 w-full mt-1 bg-eve-bg-2 border border-eve-panel-border rounded-lg px-3 py-2 text-xs text-eve-sub">
               No characters found
             </div>
           )}

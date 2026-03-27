@@ -252,7 +252,7 @@ export function CreateBountyPage() {
           </Panel>
 
           {/* ── TASK TYPE ── */}
-          <Panel className="space-y-4 mb-6">
+          <Panel className="space-y-4 mb-6 relative z-10">
             <h2 className="font-heading text-sm text-eve-gold tracking-wider">TASK TYPE</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {TASK_TYPES.map((t) => {
@@ -283,7 +283,7 @@ export function CreateBountyPage() {
 
             {/* ── KILL CRITERIA ── */}
             {taskType === TaskType.KILL && (
-              <div className="space-y-4 pt-3 border-t border-eve-panel-border/50">
+              <div className="space-y-4 pt-3 border-t border-eve-panel-border/50 overflow-visible">
                 <h3 className="font-heading text-xs text-eve-danger tracking-wider">
                   KILL CRITERIA
                 </h3>
