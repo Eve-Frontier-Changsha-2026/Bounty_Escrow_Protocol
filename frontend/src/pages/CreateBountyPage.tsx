@@ -10,6 +10,7 @@ import { Input } from '../components/ui/Input';
 import { Textarea } from '../components/ui/Textarea';
 import { TransactionToast } from '../components/ui/TransactionToast';
 import { CharacterSelect } from '../components/CharacterSelect';
+import { SolarSystemSearch } from '../components/ui/SolarSystemSearch';
 import { buildCreateBountyFull } from '../lib/ptb/create-full';
 import { resolveCharacterItemId } from '../lib/resolve-character';
 import { useCharacters } from '../hooks/useCharacters';
@@ -288,12 +289,11 @@ export function CreateBountyPage() {
                   KILL CRITERIA
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Solar System ID"
+                  <SolarSystemSearch
+                    label="Solar System"
                     value={killSolarSystem}
-                    onChange={(e) => setKillSolarSystem(e.target.value)}
-                    placeholder="e.g. 30000142"
-                    required
+                    onChange={setKillSolarSystem}
+                    hint="Where the kill must happen"
                   />
                   <Input
                     label="Loss Type"
@@ -373,12 +373,11 @@ export function CreateBountyPage() {
                     placeholder="e.g. 84556"
                     required
                   />
-                  <Input
-                    label="Solar System ID"
+                  <SolarSystemSearch
+                    label="Solar System"
                     value={buildSolarSystem}
-                    onChange={(e) => setBuildSolarSystem(e.target.value)}
-                    placeholder="e.g. 30000142"
-                    required
+                    onChange={setBuildSolarSystem}
+                    hint="Optional — where the structure must be built"
                   />
                 </div>
               </div>
