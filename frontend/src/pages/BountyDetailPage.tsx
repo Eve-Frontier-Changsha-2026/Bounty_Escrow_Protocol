@@ -26,6 +26,7 @@ import { CountdownTimer } from '../components/bounty/CountdownTimer';
 import { BountyStats } from '../components/bounty/BountyStats';
 import { ProofStatusPanel } from '../components/bounty/ProofStatusPanel';
 import { KillmailMatchPanel } from '../components/bounty/KillmailMatchPanel';
+import { BuildVerifyPanel } from '../components/bounty/BuildVerifyPanel';
 import { CreatorActions } from '../components/actions/CreatorActions';
 import { HunterActions } from '../components/actions/HunterActions';
 import { VerifierActions } from '../components/actions/VerifierActions';
@@ -418,6 +419,11 @@ export function BountyDetailPage() {
             <KillmailMatchPanel
               taskCreatedAt={taskTypeConfig.createdAt}
             />
+          )}
+
+          {/* Build verify panel — show for BUILD bounties */}
+          {taskType === TaskType.BUILD && (
+            <BuildVerifyPanel />
           )}
 
           {!isCreator && (
