@@ -35,7 +35,7 @@ describe('CharacterSelect', () => {
         onChange={vi.fn()}
       />
     );
-    expect(screen.getByPlaceholderText('Loading characters...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Loading...')).toBeInTheDocument();
   });
 
   it('filters characters by search text', async () => {
@@ -129,7 +129,7 @@ describe('CharacterSelect', () => {
     expect(screen.getByText('Optional — pick one')).toBeInTheDocument();
   });
 
-  it('shows "No characters found" for empty search results', async () => {
+  it('shows "No results found" for empty search results', async () => {
     const user = userEvent.setup();
     render(
       <CharacterSelect
@@ -145,7 +145,7 @@ describe('CharacterSelect', () => {
     await user.click(input);
     await user.type(input, 'zzzznonexist');
 
-    expect(screen.getByText('No characters found')).toBeInTheDocument();
+    expect(screen.getByText('No results found')).toBeInTheDocument();
   });
 
   // --- Monkey Tests ---
@@ -174,7 +174,7 @@ describe('CharacterSelect', () => {
     const input = screen.getByPlaceholderText('Search by name...');
     await user.click(input);
     await user.type(input, 'test');
-    expect(screen.getByText('No characters found')).toBeInTheDocument();
+    expect(screen.getByText('No results found')).toBeInTheDocument();
   });
 
   it('handles value that does not match any character', () => {
