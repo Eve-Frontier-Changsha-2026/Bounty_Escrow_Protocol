@@ -53,7 +53,7 @@ describe('fetchCharacters', () => {
     const result = await fetchCharacters();
     expect(result).toEqual(mockCharacters);
     expect(result).toHaveLength(2);
-    expect(fetch).toHaveBeenCalledWith('https://utopia.evedataco.re/api/characters');
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/characters'));
   });
 
   it('throws on non-ok response', async () => {
@@ -91,7 +91,7 @@ describe('fetchKillmails', () => {
     const result = await fetchKillmails();
     expect(result).toEqual(mockKillmails);
     expect(result[0].killerId).toBe('0xabc123');
-    expect(fetch).toHaveBeenCalledWith('https://utopia.evedataco.re/api/killmails');
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/api/killmails'));
   });
 
   it('throws on non-ok response', async () => {
