@@ -18,6 +18,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/eve-api/, ''),
       },
+      '/eve-eyes-api': {
+        target: 'https://eve-eyes.d0v.xyz',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/eve-eyes-api/, ''),
+      },
     },
   },
   build: {
