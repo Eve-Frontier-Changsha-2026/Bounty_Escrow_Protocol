@@ -3,6 +3,8 @@ import { useBountyList } from '../hooks/useBountyList';
 import { BountyCard } from '../components/bounty/BountyCard';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { STATUS_LABEL } from '../lib/constants';
+import { KillmailFeed } from '../components/bounty/KillmailFeed';
+import { Panel } from '../components/ui/Panel';
 
 const FILTER_OPTIONS = [
   { value: -1, label: 'ALL' },
@@ -105,6 +107,11 @@ export function DashboardPage() {
           ))}
         </div>
       )}
+
+      {/* Killmail Feed */}
+      <Panel className="mt-8">
+        <KillmailFeed />
+      </Panel>
     </div>
   );
 }
