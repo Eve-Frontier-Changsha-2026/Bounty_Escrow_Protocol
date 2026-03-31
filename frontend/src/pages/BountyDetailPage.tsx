@@ -25,6 +25,7 @@ import { TaskTypeBadge } from '../components/bounty/TaskTypeBadge';
 import { CountdownTimer } from '../components/bounty/CountdownTimer';
 import { BountyStats } from '../components/bounty/BountyStats';
 import { ProofStatusPanel } from '../components/bounty/ProofStatusPanel';
+import { KillmailMatchPanel } from '../components/bounty/KillmailMatchPanel';
 import { CreatorActions } from '../components/actions/CreatorActions';
 import { HunterActions } from '../components/actions/HunterActions';
 import { VerifierActions } from '../components/actions/VerifierActions';
@@ -410,6 +411,13 @@ export function BountyDetailPage() {
 
           {isCreator && (
             <CreatorActions bounty={bounty} arbitratorConfig={arbitratorConfig ?? null} onToast={setToast} />
+          )}
+
+          {/* Kill match panel — show for KILL bounties */}
+          {taskType === TaskType.KILL && taskTypeConfig?.createdAt && (
+            <KillmailMatchPanel
+              taskCreatedAt={taskTypeConfig.createdAt}
+            />
           )}
 
           {!isCreator && (
