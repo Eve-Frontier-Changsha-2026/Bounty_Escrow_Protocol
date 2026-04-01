@@ -2,6 +2,7 @@ import { Button } from '../ui/Button';
 import { useTransactionExecutor } from '../../hooks/useTransactionExecutor';
 import { buildExpire } from '../../lib/ptb/expire';
 import { BountyStatus } from '../../lib/constants';
+import { bpsToPercent } from '../../lib/format';
 import type { ParsedBounty, Toast } from '../../lib/types';
 
 const INVALIDATE_KEYS = [['bountyDetail'], ['bountyList']];
@@ -34,7 +35,7 @@ export function PublicActions({ bounty, onToast }: PublicActionsProps) {
     <div className="space-y-3">
       <h3 className="font-heading text-xs text-eve-sub tracking-wider">PUBLIC ACTIONS</h3>
       <Button variant="secondary" disabled={isPending} onClick={handleExpire} className="w-full">
-        {isPending ? 'EXPIRING...' : `EXPIRE BOUNTY (earn ${bounty.cleanupRewardBps / 100}% cleanup reward)`}
+        {isPending ? 'EXPIRING...' : `EXPIRE BOUNTY (earn ${bpsToPercent(bounty.cleanupRewardBps)} cleanup reward)`}
       </Button>
     </div>
   );

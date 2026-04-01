@@ -2,3 +2,7 @@ tasks/progress.md
 tasks/lessons.md
 examples/*/build/
 examples/*/Move.lock
+bounty_escrow/build/
+bounty_escrow/Move.lock
+.playwright-mcp/
+.claude/settings.local.json

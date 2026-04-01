@@ -43,7 +43,7 @@ export function CreatorActions({ bounty, arbitratorConfig, onToast }: CreatorAct
   const reviewPeriodValid = reviewPeriodMs >= LIMITS.MIN_REVIEW_PERIOD_MS && reviewPeriodMs <= LIMITS.MAX_REVIEW_PERIOD_MS;
 
   const arbTimeoutMs = Math.round(parseFloat(arbTimeoutDays || '0') * 86_400_000);
-  const arbAddressValid = arbAddress.startsWith('0x') && arbAddress.length >= 66;
+  const arbAddressValid = /^0x[0-9a-fA-F]{64}$/.test(arbAddress.trim());
   const arbTimeoutValid = arbTimeoutMs >= LIMITS.MIN_DISPUTE_TIMEOUT_MS && arbTimeoutMs <= LIMITS.MAX_DISPUTE_TIMEOUT_MS;
 
   const hasArbitrator = !!arbitratorConfig;

@@ -134,7 +134,7 @@ export function BountyDetailPage() {
       <Panel className="mb-4">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h1 className="font-heading text-xl sm:text-2xl text-eve-text mb-2">{bounty.title}</h1>
+            <h1 className="font-heading text-xl sm:text-2xl text-eve-text mb-2 break-words line-clamp-3">{bounty.title}</h1>
             <div className="flex items-center gap-3 flex-wrap">
               <StatusBadge status={bounty.status} />
               <TaskTypeBadge taskType={taskType} />

@@ -97,4 +97,60 @@ describe('SearchSelect', () => {
     render(<SearchSelect {...defaultProps} hint="Pick one" />);
     expect(screen.getByText('Pick one')).toBeInTheDocument();
   });
+
+  it('navigates items with arrow keys and selects with Enter', () => {
+    const onSelect = vi.fn();
+    render(<SearchSelect {...defaultProps} onSelect={onSelect} />);
+    const input = screen.getByPlaceholderText('Search...');
+    fireEvent.focus(input);
+
+    // Arrow down to first item
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { selected: true })).toHaveTextContent('Alpha');
+
+    // Arrow down to second
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    const opts = screen.getAllByRole('option');
+    expect(opts[1]).toHaveAttribute('aria-selected', 'true');
+
+    // Enter to select
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onSelect).toHaveBeenCalledWith(items[1]);
+  });
+
+  it('closes dropdown on Escape', () => {
+    render(<SearchSelect {...defaultProps} />);
+    const input = screen.getByPlaceholderText('Search...');
+    fireEvent.focus(input);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('wraps around on ArrowDown past last item', () => {
+    render(<SearchSelect {...defaultProps} />);
+    const input = screen.getByPlaceholderText('Search...');
+    fireEvent.focus(input);
+
+    // Go to last item (Gamma at index 2)
+    fireEvent.keyDown(input, { key: 'ArrowDown' }); // 0
+    fireEvent.keyDown(input, { key: 'ArrowDown' }); // 1
+    fireEvent.keyDown(input, { key: 'ArrowDown' }); // 2
+    // Wrap to first
+    fireEvent.keyDown(input, { key: 'ArrowDown' }); // 0
+    const opts = screen.getAllByRole('option');
+    expect(opts[0]).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('has proper ARIA attributes', () => {
+    render(<SearchSelect {...defaultProps} />);
+    const input = screen.getByPlaceholderText('Search...');
+    expect(input).toHaveAttribute('role', 'combobox');
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.focus(input);
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    expect(input).toHaveAttribute('aria-controls');
+  });
 });

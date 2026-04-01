@@ -9,7 +9,11 @@ export function mistToSui(mist: bigint): string {
 }
 
 export function suiToMist(sui: string): bigint {
-  const parts = sui.split('.');
+  const trimmed = sui.trim();
+  if (!trimmed || !/^-?\d+(\.\d+)?$/.test(trimmed)) {
+    throw new Error(`Invalid SUI amount: "${sui}"`);
+  }
+  const parts = trimmed.split('.');
   const whole = BigInt(parts[0] || '0') * MIST_PER_SUI;
   if (!parts[1]) return whole;
   const fracStr = parts[1].padEnd(9, '0').slice(0, 9);
@@ -41,6 +45,16 @@ export function formatCountdown(targetMs: number): string {
 
 export function bpsToPercent(bps: number): string {
   return `${(bps / 100).toFixed(1)}%`;
+}
+
+export function timeAgo(ms: number): string {
+  const diff = Date.now() - ms;
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 export function parseErrorCode(errorMsg: string): number | null {

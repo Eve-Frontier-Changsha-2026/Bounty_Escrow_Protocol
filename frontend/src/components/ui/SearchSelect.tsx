@@ -1,5 +1,5 @@
 // frontend/src/components/ui/SearchSelect.tsx
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 
 interface SearchSelectProps<T> {
   items: T[];
@@ -30,11 +30,18 @@ export function SearchSelect<T>({
 }: SearchSelectProps<T>) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   const filtered = query.trim()
     ? items.filter((item) => filterFn(item, query))
     : items;
+
+  // Reset active index when filtered items change
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [filtered.length]);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -44,7 +51,60 @@ export function SearchSelect<T>({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Scroll active option into view
+  useEffect(() => {
+    if (activeIndex < 0 || !listRef.current) return;
+    const el = listRef.current.children[activeIndex] as HTMLElement | undefined;
+    el?.scrollIntoView?.({ block: 'nearest' });
+  }, [activeIndex]);
+
+  const selectItem = useCallback(
+    (item: T) => {
+      onSelect(item);
+      setQuery('');
+      setOpen(false);
+      setActiveIndex(-1);
+    },
+    [onSelect],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!open) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          setOpen(true);
+          e.preventDefault();
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setActiveIndex((prev) => (prev < filtered.length - 1 ? prev + 1 : 0));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setActiveIndex((prev) => (prev > 0 ? prev - 1 : filtered.length - 1));
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (activeIndex >= 0 && activeIndex < filtered.length) {
+            selectItem(filtered[activeIndex]);
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          setOpen(false);
+          setActiveIndex(-1);
+          break;
+      }
+    },
+    [open, activeIndex, filtered, selectItem],
+  );
+
   const inputId = label?.toLowerCase().replace(/\s+/g, '-') ?? 'search-select';
+  const listboxId = `${inputId}-listbox`;
 
   if (selected) {
     return (
@@ -88,6 +148,11 @@ export function SearchSelect<T>({
         <input
           id={inputId}
           type="text"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listboxId}
+          aria-activedescendant={activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined}
+          aria-autocomplete="list"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -95,23 +160,34 @@ export function SearchSelect<T>({
             onQueryChange?.(e.target.value);
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={handleKeyDown}
           placeholder={loading ? 'Loading...' : placeholder}
           disabled={loading}
           className="w-full bg-eve-bg-2 border border-eve-panel-border rounded-lg px-3 py-2.5 text-sm text-eve-text font-body placeholder:text-eve-sub/50 focus:outline-none focus:border-eve-cyan/60 focus:shadow-[0_0_12px_rgba(102,203,255,0.2)] transition-all"
         />
 
         {open && filtered.length > 0 && (
-          <ul className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto bg-eve-bg-2 border border-eve-panel-border rounded-lg shadow-lg">
+          <ul
+            id={listboxId}
+            ref={listRef}
+            role="listbox"
+            className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto bg-eve-bg-2 border border-eve-panel-border rounded-lg shadow-lg"
+          >
             {filtered.map((item, i) => (
-              <li key={i}>
+              <li
+                key={i}
+                id={`${listboxId}-opt-${i}`}
+                role="option"
+                aria-selected={i === activeIndex}
+              >
                 <button
                   type="button"
-                  onClick={() => {
-                    onSelect(item);
-                    setQuery('');
-                    setOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-eve-cyan/10 transition-colors"
+                  tabIndex={-1}
+                  onClick={() => selectItem(item)}
+                  onMouseEnter={() => setActiveIndex(i)}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    i === activeIndex ? 'bg-eve-cyan/10' : 'hover:bg-eve-cyan/10'
+                  }`}
                 >
                   {renderItem(item)}
                 </button>

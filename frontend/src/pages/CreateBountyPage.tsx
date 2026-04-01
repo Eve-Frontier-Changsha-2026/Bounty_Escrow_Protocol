@@ -36,7 +36,6 @@ type CreateStep = 'form' | 'tx1' | 'encrypt' | 'tx2' | 'done';
 interface Tx2Recovery {
   digest1: string;
   bountyId: string;
-  encryptedText: string;
   timestamp: number;
 }
 
@@ -190,9 +189,13 @@ export function CreateBountyPage() {
   // TX2 recovery handler
   // ---------------------------------------------------------------
   async function handleRetryTx2(rec: Tx2Recovery) {
+    if (!form.encryptedText.trim()) {
+      setToast({ type: 'error', message: 'Enter the encrypted details text below before retrying.' });
+      return;
+    }
     try {
       setStep('encrypt');
-      const plaintext = new TextEncoder().encode(rec.encryptedText);
+      const plaintext = new TextEncoder().encode(form.encryptedText);
 
       const { encryptedObject } = await sealEncrypt({
         suiClient: client as SealCompatibleClient,
@@ -238,8 +241,31 @@ export function CreateBountyPage() {
 
     try {
       const now = Date.now();
-      const deadlineMs = BigInt(Math.floor(parseFloat(form.deadlineHours) * 3_600_000));
-      const graceMs = BigInt(Math.floor(parseFloat(form.gracePeriodHours) * 3_600_000));
+
+      // --- Front-end validation (block garbage before PTB) ---
+      const deadlineHoursNum = parseFloat(form.deadlineHours);
+      const graceHoursNum = parseFloat(form.gracePeriodHours);
+      const maxClaimsNum = parseInt(form.maxClaims);
+      const cleanupBpsNum = parseInt(form.cleanupBps);
+
+      if (!form.rewardSui || isNaN(Number(form.rewardSui)) || Number(form.rewardSui) <= 0) {
+        throw new Error('Reward must be a positive number');
+      }
+      if (isNaN(deadlineHoursNum) || deadlineHoursNum < 1) {
+        throw new Error('Deadline must be at least 1 hour');
+      }
+      if (isNaN(graceHoursNum) || graceHoursNum < 1) {
+        throw new Error('Grace period must be at least 1 hour');
+      }
+      if (isNaN(maxClaimsNum) || maxClaimsNum < 1 || maxClaimsNum > LIMITS.MAX_CLAIMS) {
+        throw new Error(`Max claims must be 1–${LIMITS.MAX_CLAIMS}`);
+      }
+      if (isNaN(cleanupBpsNum) || cleanupBpsNum < 0 || cleanupBpsNum > LIMITS.MAX_CLEANUP_BPS) {
+        throw new Error(`Cleanup reward must be 0–${LIMITS.MAX_CLEANUP_BPS} bps`);
+      }
+
+      const deadlineMs = BigInt(Math.floor(deadlineHoursNum * 3_600_000));
+      const graceMs = BigInt(Math.floor(graceHoursNum * 3_600_000));
 
       // Validate verifier address if provided
       if (form.verifierAddr && !isValidSuiAddress(form.verifierAddr)) {
@@ -248,7 +274,10 @@ export function CreateBountyPage() {
 
       // Validate u64 bounds before building PTB
       const rewardMist = suiToMist(form.rewardSui);
-      const escrow = rewardMist * BigInt(parseInt(form.maxClaims));
+      if (rewardMist <= 0n) {
+        throw new Error('Reward must be greater than zero');
+      }
+      const escrow = rewardMist * BigInt(maxClaimsNum);
       if (rewardMist > MAX_U64 || escrow > MAX_U64) {
         throw new Error('Total escrow exceeds maximum allowed amount');
       }
@@ -314,8 +343,8 @@ export function CreateBountyPage() {
 
         const bountyId = await extractBountyId(digest1);
 
-        // Persist for recovery in case TX2 fails
-        saveTx2Recovery({ digest1, bountyId, encryptedText: form.encryptedText });
+        // Persist for recovery in case TX2 fails (no plaintext — user re-enters)
+        saveTx2Recovery({ digest1, bountyId });
 
         const plaintext = new TextEncoder().encode(form.encryptedText);
 
@@ -377,6 +406,14 @@ export function CreateBountyPage() {
                 A bounty was created but encrypted details were not saved.
                 Bounty ID: <span className="text-eve-text font-mono">{recovery.bountyId.slice(0, 16)}...</span>
               </p>
+              <Textarea
+                label="Re-enter encrypted details"
+                value={form.encryptedText}
+                onChange={(e) => set('encryptedText', e.target.value)}
+                placeholder="Re-enter the sensitive bounty details to encrypt..."
+                maxLength={LIMITS.MAX_ENCRYPTED_DETAILS_SIZE}
+                rows={3}
+              />
               <div className="flex gap-2">
                 <Button
                   type="button"

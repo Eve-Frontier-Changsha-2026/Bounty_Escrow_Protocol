@@ -1,19 +1,10 @@
 import { useState } from 'react';
 import { useKillmailFeed } from '../../hooks/useKillmailFeed';
 import { LoadingSpinner } from '../ui/LoadingSpinner';
+import { timeAgo } from '../../lib/format';
 import type { EveEyesKillmail } from '../../lib/eve-eyes-api';
 
 type StatusFilter = 'all' | 'resolved' | 'pending';
-
-function timeAgo(ms: number): string {
-  const diff = Date.now() - ms;
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 export function KillmailFeed() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');

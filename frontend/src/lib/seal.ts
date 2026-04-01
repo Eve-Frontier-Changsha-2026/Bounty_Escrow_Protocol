@@ -5,20 +5,23 @@ import { fromHex } from '@mysten/sui/utils';
 import { SEAL_APPROVE_TARGET, SEAL_CONFIG } from '../config/seal';
 
 // ---------------------------------------------------------------------------
-// SealClient singleton (lazy)
+// SealClient — keyed by suiClient identity (recreates on network switch)
 // ---------------------------------------------------------------------------
 
-let _sealClient: SealClient | null = null;
+let _cached: { ref: SealCompatibleClient; client: SealClient } | null = null;
 
 export function getSealClient(suiClient: SealCompatibleClient): SealClient {
-  if (!_sealClient) {
-    _sealClient = new SealClient({
-      suiClient,
-      serverConfigs: [...SEAL_CONFIG.serverConfigs],
-      verifyKeyServers: SEAL_CONFIG.verifyKeyServers,
-    });
+  if (!_cached || _cached.ref !== suiClient) {
+    _cached = {
+      ref: suiClient,
+      client: new SealClient({
+        suiClient,
+        serverConfigs: [...SEAL_CONFIG.serverConfigs],
+        verifyKeyServers: SEAL_CONFIG.verifyKeyServers,
+      }),
+    };
   }
-  return _sealClient;
+  return _cached.client;
 }
 
 // ---------------------------------------------------------------------------

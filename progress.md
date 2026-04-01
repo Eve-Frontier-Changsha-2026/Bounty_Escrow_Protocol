@@ -19,6 +19,22 @@
 
 ## 進度日誌
 
+### 2026-04-01 — Logo 設計與去背完成
+
+#### 做了什麼
+- 閱讀 README 文件理解 `Bounty_Escrow_Protocol` 核心概念。
+- 結合 EVE Frontier (星際、賞金獵人) 與 SUI (區塊鏈、科幻水藍色調) 概念進行視覺設計。
+- 透過 `generate_image` 生成出結合科技鎖/盾與星空背景的 Logo 原圖。
+- 使用 `rembg` 工具有效去除圖片背景，轉換為透明底圖 `logo.png` 以利專案各處套用。
+
+#### 更動/新增了哪些檔案
+- `[NEW] logo.png`
+
+#### 下一步
+- 可將此 Logo 應用於 GitHub README、系統 Dashboard 或是 DApp 等前端介面。
+
+---
+
 ### 2026-03-21 — Integration Guide Spec 完成
 
 #### 做了什麼

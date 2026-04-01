@@ -19,5 +19,5 @@ export const SEAL_CONFIG = {
     },
   ],
   threshold: 2,
-  verifyKeyServers: false,
+  verifyKeyServers: !import.meta.env.DEV,
 } as const;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useSystemSearch } from '../../hooks/useSystemSearch';
 import { SearchSelect } from './SearchSelect';
 import type { SolarSystemResult } from '../../lib/eve-eyes-api';
@@ -19,9 +19,12 @@ export function SolarSystemSearch({
 }: SolarSystemSearchProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const { data: results = [], isLoading } = useSystemSearch(searchQuery);
+  const cachedRef = useRef<SolarSystemResult | null>(null);
 
   const selectedSystem: SolarSystemResult | null = value
-    ? { id: Number(value), name: `System #${value}` }
+    ? cachedRef.current?.id === Number(value)
+      ? cachedRef.current
+      : { id: Number(value), name: `System #${value}` }
     : null;
 
   return (
@@ -41,6 +44,7 @@ export function SolarSystemSearch({
         </>
       )}
       onSelect={(s) => {
+        cachedRef.current = s;
         onChange(s ? String(s.id) : '');
         setSearchQuery('');
       }}

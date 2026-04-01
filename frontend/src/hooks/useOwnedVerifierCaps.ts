@@ -4,6 +4,7 @@ import { ORIGINAL_PACKAGE_ID } from '../config/contracts';
 import type { ParsedVerifierCap } from '../lib/types';
 
 const CAP_TYPE = `${ORIGINAL_PACKAGE_ID}::verifier::VerifierCap`;
+const MAX_PAGES = 10;
 
 export function useOwnedVerifierCaps() {
   const account = useCurrentAccount();
@@ -12,22 +13,32 @@ export function useOwnedVerifierCaps() {
   return useQuery({
     queryKey: ['ownedVerifierCaps', account?.address],
     queryFn: async () => {
-      const result = await client.getOwnedObjects({
-        owner: account!.address,
-        filter: { StructType: CAP_TYPE },
-        options: { showContent: true },
-      });
+      const all: ParsedVerifierCap[] = [];
+      let cursor: string | null | undefined;
 
-      return result.data
-        .filter((obj) => obj.data?.content?.dataType === 'moveObject')
-        .map((obj): ParsedVerifierCap => {
-          const data = obj.data!;
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const result = await client.getOwnedObjects({
+          owner: account!.address,
+          filter: { StructType: CAP_TYPE },
+          options: { showContent: true },
+          cursor: cursor ?? undefined,
+        });
+
+        for (const obj of result.data) {
+          if (obj.data?.content?.dataType !== 'moveObject') continue;
+          const data = obj.data;
           const fields = (data.content as { fields: Record<string, unknown> }).fields;
-          return {
+          all.push({
             id: data.objectId,
             bountyId: String(fields.bounty_id ?? ''),
-          };
-        });
+          });
+        }
+
+        if (!result.hasNextPage || !result.nextCursor) break;
+        cursor = result.nextCursor;
+      }
+
+      return all;
     },
     enabled: !!account,
     staleTime: 60_000,
