@@ -11,11 +11,21 @@ interface ProofStatusPanelProps {
   rejections: RejectionRecord[];
 }
 
+function isSafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 export function ProofStatusPanel({ proof, reviewPeriodMs, rejections }: ProofStatusPanelProps) {
   const label = PROOF_STATUS_LABEL[proof.status] ?? 'UNKNOWN';
   const color = PROOF_STATUS_COLOR[proof.status] ?? 'text-eve-sub';
   const reviewDeadline = proof.submittedAt + reviewPeriodMs;
   const showReviewCountdown = proof.status === ProofStatus.SUBMITTED && Date.now() < reviewDeadline;
+  const safeProofUrl = isSafeUrl(proof.proofUrl);
 
   return (
     <Panel className="mb-4">
@@ -33,14 +43,18 @@ export function ProofStatusPanel({ proof, reviewPeriodMs, rejections }: ProofSta
         {/* Proof URL */}
         <div className="text-xs">
           <span className="text-eve-sub">Proof URL: </span>
-          <a
-            href={proof.proofUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-eve-cyan hover:underline break-all"
-          >
-            {proof.proofUrl}
-          </a>
+          {safeProofUrl ? (
+            <a
+              href={proof.proofUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-eve-cyan hover:underline break-all"
+            >
+              {proof.proofUrl}
+            </a>
+          ) : (
+            <span className="text-eve-text break-all">{proof.proofUrl}</span>
+          )}
         </div>
 
         {/* Proof description */}

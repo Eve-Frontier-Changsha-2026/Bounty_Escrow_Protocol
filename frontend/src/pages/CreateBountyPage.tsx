@@ -16,7 +16,7 @@ import { resolveCharacterItemId } from '../lib/resolve-character';
 import { useCharacters } from '../hooks/useCharacters';
 import { buildSetEncryptedDetails } from '../lib/ptb/set-encrypted-details';
 import { sealEncrypt } from '../lib/seal';
-import { suiToMist, bpsToPercent } from '../lib/format';
+import { suiToMist, mistToSui, bpsToPercent } from '../lib/format';
 import { jsonRpcClient } from '../lib/rpc';
 import {
   TaskType,
@@ -29,6 +29,7 @@ import { ORIGINAL_PACKAGE_ID } from '../config/contracts';
 import type { Toast, BountyCreatedEvent } from '../lib/types';
 
 const INVALIDATE_KEYS = [['bountyList']];
+const MAX_U64 = (1n << 64n) - 1n;
 
 type CreateStep = 'form' | 'tx1' | 'encrypt' | 'tx2' | 'done';
 
@@ -92,6 +93,7 @@ export function CreateBountyPage() {
       return 0n;
     }
   }, [rewardSui, maxClaims]);
+  const escrowOverflow = totalEscrow > MAX_U64;
 
   const isPending = step !== 'form' && step !== 'done';
 
@@ -121,6 +123,13 @@ export function CreateBountyPage() {
       const now = Date.now();
       const deadlineMs = BigInt(Math.floor(parseFloat(deadlineHours) * 3_600_000));
       const graceMs = BigInt(Math.floor(parseFloat(gracePeriodHours) * 3_600_000));
+
+      // Validate u64 bounds before building PTB
+      const rewardMist = suiToMist(rewardSui);
+      const escrow = rewardMist * BigInt(parseInt(maxClaims));
+      if (rewardMist > MAX_U64 || escrow > MAX_U64) {
+        throw new Error('Total escrow exceeds maximum allowed amount');
+      }
 
       // === TX1: Create + configure + share ===
       setStep('tx1');
@@ -477,8 +486,8 @@ export function CreateBountyPage() {
             </div>
             <div className="text-xs text-eve-sub">
               Total escrow required:{' '}
-              <span className="text-eve-gold font-heading">
-                {totalEscrow > 0n ? `${Number(totalEscrow) / 1e9} SUI` : '—'}
+              <span className={`font-heading ${escrowOverflow ? 'text-eve-danger' : 'text-eve-gold'}`}>
+                {escrowOverflow ? 'EXCEEDS MAX' : totalEscrow > 0n ? `${mistToSui(totalEscrow)} SUI` : '—'}
               </span>
             </div>
           </Panel>
@@ -522,7 +531,7 @@ export function CreateBountyPage() {
           </Panel>
 
           {/* ── SUBMIT ── */}
-          <Button type="submit" disabled={isPending} className="w-full">
+          <Button type="submit" disabled={isPending || escrowOverflow} className="w-full">
             {step === 'tx1' && 'SIGNING TX1 — CREATE BOUNTY...'}
             {step === 'encrypt' && 'ENCRYPTING WITH SEAL...'}
             {step === 'tx2' && 'SIGNING TX2 — SET ENCRYPTED DETAILS...'}

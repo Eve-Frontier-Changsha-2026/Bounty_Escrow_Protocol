@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useDAppKit, useCurrentClient, useCurrentAccount } from '@mysten/dapp-kit-react';
 import type { SessionKey } from '@mysten/seal';
 import type { SealCompatibleClient } from '@mysten/seal';
@@ -25,6 +25,14 @@ export function useSealDecrypt() {
 
   // Cache session key per address to avoid re-signing within TTL
   const sessionKeyRef = useRef<{ address: string; key: SessionKey } | null>(null);
+
+  // Invalidate cached session key when wallet address changes
+  useEffect(() => {
+    const cached = sessionKeyRef.current;
+    if (cached && cached.address !== account?.address) {
+      sessionKeyRef.current = null;
+    }
+  }, [account?.address]);
 
   const decrypt = useCallback(
     async (args: {

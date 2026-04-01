@@ -2,6 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { jsonRpcClient } from '../lib/rpc';
 import type { ParsedBounty } from '../lib/types';
 
+/** Safely extract value from Balance<T> (nested struct or flat string) */
+function unwrapBalance(val: unknown): bigint {
+  if (val == null) return 0n;
+  if (typeof val === 'string' || typeof val === 'number' || typeof val === 'bigint') {
+    return BigInt(String(val));
+  }
+  const obj = val as Record<string, unknown>;
+  const inner = (obj.fields as Record<string, unknown> | undefined)?.value ?? obj.value;
+  return inner != null ? BigInt(String(inner)) : 0n;
+}
+
 export function useBountyDetail(bountyId: string | undefined) {
   return useQuery({
     queryKey: ['bountyDetail', bountyId],
@@ -32,8 +43,8 @@ export function useBountyDetail(bountyId: string | undefined) {
         creator: String(fields.creator ?? ''),
         title: String(fields.title ?? ''),
         description: String(fields.description ?? ''),
-        escrowValue: BigInt(String(fields.escrow ?? '0')),
-        stakePoolValue: BigInt(String(fields.stake_pool ?? '0')),
+        escrowValue: unwrapBalance(fields.escrow),
+        stakePoolValue: unwrapBalance(fields.stake_pool),
         rewardAmount: BigInt(String(fields.reward_amount ?? '0')),
         requiredStake: BigInt(String(fields.required_stake ?? '0')),
         cleanupRewardBps: Number(fields.cleanup_reward_bps ?? 0),
