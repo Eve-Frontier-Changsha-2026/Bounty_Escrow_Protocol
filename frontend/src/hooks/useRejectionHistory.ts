@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useCurrentClient } from '@mysten/dapp-kit-react';
-import type { SuiEvent } from '@mysten/sui/client';
+import type { SuiEvent, EventId } from '@mysten/sui/jsonRpc';
 import { V3_PACKAGE_ID } from '../config/contracts';
 
 export interface RejectionRecord {
@@ -21,7 +21,7 @@ export function useRejectionHistory(
     queryFn: async () => {
       const eventType = `${V3_PACKAGE_ID}::bounty::ProofRejectedEvent`;
       const allEvents: SuiEvent[] = [];
-      let cursor: string | null | undefined = undefined;
+      let cursor: EventId | null | undefined = undefined;
 
       for (let page = 0; page < MAX_PAGES; page++) {
         const result = await client.queryEvents({

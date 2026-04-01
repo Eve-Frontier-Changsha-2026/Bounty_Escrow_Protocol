@@ -1,13 +1,9 @@
 const EVE_EYES_BASE = import.meta.env.DEV
   ? '/eve-eyes-api'
-  : 'https://eve-eyes.d0v.xyz';
-
-const API_KEY = import.meta.env.VITE_EVE_EYES_API_KEY ?? '';
+  : '/api/eve-eyes';
 
 function headers(): Record<string, string> {
-  const h: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (API_KEY) h['Authorization'] = `ApiKey ${API_KEY}`;
-  return h;
+  return { 'Content-Type': 'application/json' };
 }
 
 // --- Types ---

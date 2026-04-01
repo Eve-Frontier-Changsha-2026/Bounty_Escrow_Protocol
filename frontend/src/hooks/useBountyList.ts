@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useCurrentClient } from '@mysten/dapp-kit-react';
-import type { SuiEvent } from '@mysten/sui/client';
+import type { SuiEvent, EventId } from '@mysten/sui/jsonRpc';
 import { ORIGINAL_PACKAGE_ID } from '../config/contracts';
 import type { ParsedBounty, BountyCreatedEvent } from '../lib/types';
 
@@ -47,7 +47,7 @@ export function useBountyList() {
       // Step 1: Query BountyCreated events with cursor pagination
       const eventType = `${ORIGINAL_PACKAGE_ID}::bounty::BountyCreated`;
       const allEvents: SuiEvent[] = [];
-      let cursor: string | null | undefined = undefined;
+      let cursor: EventId | null | undefined = undefined;
       const MAX_PAGES = 10;
 
       for (let page = 0; page < MAX_PAGES; page++) {
