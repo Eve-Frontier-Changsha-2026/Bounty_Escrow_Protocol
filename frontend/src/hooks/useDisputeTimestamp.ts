@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { V4_PACKAGE_ID } from '../config/contracts';
 
 export interface DisputeTimestamp {
@@ -7,10 +7,11 @@ export interface DisputeTimestamp {
 }
 
 export function useDisputeTimestamp(bountyId: string | undefined, hunterAddress: string | undefined) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['disputeTimestamp', bountyId, hunterAddress],
     queryFn: async (): Promise<DisputeTimestamp | null> => {
-      const result = await jsonRpcClient.getDynamicFieldObject({
+      const result = await client.getDynamicFieldObject({
         parentId: bountyId!,
         name: {
           type: `${V4_PACKAGE_ID}::bounty::DisputeTimestampKey`,
@@ -32,5 +33,6 @@ export function useDisputeTimestamp(bountyId: string | undefined, hunterAddress:
       };
     },
     enabled: !!bountyId && !!hunterAddress,
+    staleTime: 60_000,
   });
 }

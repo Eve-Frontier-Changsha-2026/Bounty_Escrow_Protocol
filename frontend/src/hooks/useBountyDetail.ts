@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import type { ParsedBounty } from '../lib/types';
 
 /** Safely extract value from Balance<T> (nested struct or flat string) */
@@ -14,10 +14,11 @@ function unwrapBalance(val: unknown): bigint {
 }
 
 export function useBountyDetail(bountyId: string | undefined) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['bountyDetail', bountyId],
     queryFn: async () => {
-      const result = await jsonRpcClient.getObject({
+      const result = await client.getObject({
         id: bountyId!,
         options: { showContent: true },
       });
@@ -59,5 +60,6 @@ export function useBountyDetail(bountyId: string | undefined) {
       } satisfies ParsedBounty;
     },
     enabled: !!bountyId,
+    staleTime: 15_000,
   });
 }

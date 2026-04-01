@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { V3_PACKAGE_ID } from '../config/contracts';
 import { LIMITS } from '../lib/constants';
 
 export function useReviewConfig(bountyId: string | undefined) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['reviewConfig', bountyId],
     queryFn: async () => {
-      const result = await jsonRpcClient.getDynamicFieldObject({
+      const result = await client.getDynamicFieldObject({
         parentId: bountyId!,
         name: {
           type: `${V3_PACKAGE_ID}::bounty::ReviewConfigKey`,
@@ -27,5 +28,6 @@ export function useReviewConfig(bountyId: string | undefined) {
       return Number(value.review_period_ms ?? LIMITS.DEFAULT_REVIEW_PERIOD_MS);
     },
     enabled: !!bountyId,
+    staleTime: 60_000,
   });
 }

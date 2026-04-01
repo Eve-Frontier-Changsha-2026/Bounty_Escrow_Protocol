@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { V7_PACKAGE_ID } from '../config/contracts';
 import type { EncryptedDetails } from '../lib/types';
 
 export function useEncryptedDetails(bountyId: string | undefined) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['encryptedDetails', bountyId],
     queryFn: async (): Promise<EncryptedDetails | null> => {
-      const result = await jsonRpcClient.getDynamicFieldObject({
+      const result = await client.getDynamicFieldObject({
         parentId: bountyId!,
         name: {
           type: `${V7_PACKAGE_ID}::encrypted_details::EncryptedDetailsKey`,
@@ -34,5 +35,6 @@ export function useEncryptedDetails(bountyId: string | undefined) {
       };
     },
     enabled: !!bountyId,
+    staleTime: 60_000,
   });
 }

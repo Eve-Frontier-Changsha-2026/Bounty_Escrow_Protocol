@@ -1,14 +1,14 @@
 import { createDAppKit } from '@mysten/dapp-kit-react';
-import { SuiGrpcClient } from '@mysten/sui/grpc';
-import { NETWORKS, DEFAULT_NETWORK, GRPC_URLS, type Network } from './config/network';
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+import { NETWORKS, DEFAULT_NETWORK, RPC_URLS, type Network } from './config/network';
 
 export const dAppKit = createDAppKit({
   networks: [...NETWORKS],
   defaultNetwork: DEFAULT_NETWORK,
   createClient: (network) =>
-    new SuiGrpcClient({
+    new SuiJsonRpcClient({
+      url: RPC_URLS[network as Network],
       network: network as Network,
-      baseUrl: GRPC_URLS[network as Network],
     }),
 });
 

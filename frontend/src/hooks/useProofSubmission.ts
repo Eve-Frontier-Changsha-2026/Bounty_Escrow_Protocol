@@ -1,13 +1,17 @@
 import { useQuery, useQueries } from '@tanstack/react-query';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { V3_PACKAGE_ID } from '../config/contracts';
 import type { ParsedProofSubmission } from '../lib/types';
 
+type ReadClient = Pick<SuiJsonRpcClient, 'getDynamicFieldObject'>;
+
 export async function fetchProofSubmission(
+  client: ReadClient,
   bountyId: string,
   hunterAddress: string,
 ): Promise<ParsedProofSubmission | null> {
-  const result = await jsonRpcClient.getDynamicFieldObject({
+  const result = await client.getDynamicFieldObject({
     parentId: bountyId,
     name: {
       type: `${V3_PACKAGE_ID}::bounty::ProofKey`,
@@ -42,10 +46,12 @@ export function useProofSubmission(
   bountyId: string | undefined,
   hunterAddress: string | undefined,
 ) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['proofSubmission', bountyId, hunterAddress],
-    queryFn: () => fetchProofSubmission(bountyId!, hunterAddress!),
+    queryFn: () => fetchProofSubmission(client, bountyId!, hunterAddress!),
     enabled: !!bountyId && !!hunterAddress,
+    staleTime: 30_000,
   });
 }
 
@@ -54,11 +60,13 @@ export function useHunterProofs(
   bountyId: string | undefined,
   hunters: string[],
 ) {
+  const client = useCurrentClient();
   return useQueries({
     queries: hunters.map(hunter => ({
       queryKey: ['proofSubmission', bountyId, hunter],
-      queryFn: () => fetchProofSubmission(bountyId!, hunter),
+      queryFn: () => fetchProofSubmission(client, bountyId!, hunter),
       enabled: !!bountyId,
+      staleTime: 30_000,
     })),
   });
 }

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { V4_PACKAGE_ID } from '../config/contracts';
 
 export interface ArbitratorConfig {
@@ -8,10 +8,11 @@ export interface ArbitratorConfig {
 }
 
 export function useArbitratorConfig(bountyId: string | undefined) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['arbitratorConfig', bountyId],
     queryFn: async (): Promise<ArbitratorConfig | null> => {
-      const result = await jsonRpcClient.getDynamicFieldObject({
+      const result = await client.getDynamicFieldObject({
         parentId: bountyId!,
         name: {
           type: `${V4_PACKAGE_ID}::bounty::ArbitratorConfigKey`,
@@ -34,5 +35,6 @@ export function useArbitratorConfig(bountyId: string | undefined) {
       };
     },
     enabled: !!bountyId,
+    staleTime: 60_000,
   });
 }

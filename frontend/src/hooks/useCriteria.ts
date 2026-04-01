@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { V5_PACKAGE_ID } from '../config/contracts';
 import { TaskType } from '../lib/constants';
 import type { KillCriteria, DeliveryCriteria, BuildCriteria } from '../lib/types';
@@ -10,29 +11,33 @@ export type CriteriaResult =
   | { type: 'build'; data: BuildCriteria }
   | null;
 
+type ReadClient = Pick<SuiJsonRpcClient, 'getDynamicFieldObject'>;
+
 /**
  * Fetch criteria DF for a bounty given its task type.
  * Pass taskType from useTaskType() so this hook only fires when we know which criteria to read.
  */
 export function useCriteria(bountyId: string | undefined, taskType: number | undefined) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['criteria', bountyId, taskType],
     queryFn: async (): Promise<CriteriaResult> => {
       if (taskType === TaskType.KILL) {
-        return fetchKillCriteria(bountyId!);
+        return fetchKillCriteria(client, bountyId!);
       } else if (taskType === TaskType.DELIVERY) {
-        return fetchDeliveryCriteria(bountyId!);
+        return fetchDeliveryCriteria(client, bountyId!);
       } else if (taskType === TaskType.BUILD) {
-        return fetchBuildCriteria(bountyId!);
+        return fetchBuildCriteria(client, bountyId!);
       }
       return null;
     },
     enabled: !!bountyId && taskType != null && taskType !== TaskType.CUSTOM && taskType !== TaskType.INTEL,
+    staleTime: 60_000,
   });
 }
 
-async function fetchKillCriteria(parentId: string): Promise<CriteriaResult> {
-  const result = await jsonRpcClient.getDynamicFieldObject({
+async function fetchKillCriteria(client: ReadClient, parentId: string): Promise<CriteriaResult> {
+  const result = await client.getDynamicFieldObject({
     parentId,
     name: {
       type: `${V5_PACKAGE_ID}::task_type::KillCriteriaKey`,
@@ -59,8 +64,8 @@ async function fetchKillCriteria(parentId: string): Promise<CriteriaResult> {
   };
 }
 
-async function fetchDeliveryCriteria(parentId: string): Promise<CriteriaResult> {
-  const result = await jsonRpcClient.getDynamicFieldObject({
+async function fetchDeliveryCriteria(client: ReadClient, parentId: string): Promise<CriteriaResult> {
+  const result = await client.getDynamicFieldObject({
     parentId,
     name: {
       type: `${V5_PACKAGE_ID}::task_type::DeliveryCriteriaKey`,
@@ -87,8 +92,8 @@ async function fetchDeliveryCriteria(parentId: string): Promise<CriteriaResult> 
   };
 }
 
-async function fetchBuildCriteria(parentId: string): Promise<CriteriaResult> {
-  const result = await jsonRpcClient.getDynamicFieldObject({
+async function fetchBuildCriteria(client: ReadClient, parentId: string): Promise<CriteriaResult> {
+  const result = await client.getDynamicFieldObject({
     parentId,
     name: {
       type: `${V5_PACKAGE_ID}::task_type::BuildCriteriaKey`,

@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { V7_PACKAGE_ID } from '../config/contracts';
 import type { EncryptionState } from '../lib/types';
 
 export function useEncryptionState(bountyId: string | undefined) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['encryptionState', bountyId],
     queryFn: async (): Promise<EncryptionState | null> => {
-      const result = await jsonRpcClient.getDynamicFieldObject({
+      const result = await client.getDynamicFieldObject({
         parentId: bountyId!,
         name: {
           type: `${V7_PACKAGE_ID}::task_type::EncryptionStateKey`,
@@ -30,5 +31,6 @@ export function useEncryptionState(bountyId: string | undefined) {
       };
     },
     enabled: !!bountyId,
+    staleTime: 60_000,
   });
 }

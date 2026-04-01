@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import type { SuiEvent } from '@mysten/sui/client';
-import { jsonRpcClient } from '../lib/rpc';
 import { V3_PACKAGE_ID } from '../config/contracts';
 
 export interface RejectionRecord {
@@ -15,6 +15,7 @@ export function useRejectionHistory(
   bountyId: string | undefined,
   hunterAddress: string | undefined,
 ) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['rejectionHistory', bountyId, hunterAddress],
     queryFn: async () => {
@@ -23,7 +24,7 @@ export function useRejectionHistory(
       let cursor: string | null | undefined = undefined;
 
       for (let page = 0; page < MAX_PAGES; page++) {
-        const result = await jsonRpcClient.queryEvents({
+        const result = await client.queryEvents({
           query: { MoveEventType: eventType },
           limit: 50,
           order: 'ascending',

@@ -17,7 +17,6 @@ import { useCharacters } from '../hooks/useCharacters';
 import { buildSetEncryptedDetails } from '../lib/ptb/set-encrypted-details';
 import { sealEncrypt } from '../lib/seal';
 import { suiToMist, mistToSui, bpsToPercent } from '../lib/format';
-import { jsonRpcClient } from '../lib/rpc';
 import {
   TaskType,
   TASK_TYPE_LABEL,
@@ -101,7 +100,7 @@ export function CreateBountyPage() {
   // Extract bountyId from TX1 digest via BountyCreated event
   // ---------------------------------------------------------------
   async function extractBountyId(digest: string): Promise<string> {
-    const txBlock = await jsonRpcClient.getTransactionBlock({
+    const txBlock = await client.getTransactionBlock({
       digest,
       options: { showEvents: true },
     });
@@ -137,7 +136,7 @@ export function CreateBountyPage() {
       // Resolve target victim item_id if selected
       let resolvedVictimId: string | undefined;
       if (selectedTargetCharId) {
-        resolvedVictimId = await resolveCharacterItemId(selectedTargetCharId);
+        resolvedVictimId = await resolveCharacterItemId(client, selectedTargetCharId);
       }
 
       const tx1 = buildCreateBountyFull({

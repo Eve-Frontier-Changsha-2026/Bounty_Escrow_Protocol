@@ -1,11 +1,13 @@
-import { jsonRpcClient } from './rpc';
+import type { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
+
+type ReadClient = Pick<SuiJsonRpcClient, 'getObject'>;
 
 /**
  * Resolve a Character's Sui Object ID to its in-game item_id (u64).
  * Reads the on-chain Character object and extracts key.fields.item_id.
  */
-export async function resolveCharacterItemId(characterObjectId: string): Promise<string> {
-  const result = await jsonRpcClient.getObject({
+export async function resolveCharacterItemId(client: ReadClient, characterObjectId: string): Promise<string> {
+  const result = await client.getObject({
     id: characterObjectId,
     options: { showContent: true },
   });

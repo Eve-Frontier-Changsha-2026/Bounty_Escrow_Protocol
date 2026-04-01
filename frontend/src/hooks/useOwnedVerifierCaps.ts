@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useCurrentAccount } from '@mysten/dapp-kit-react';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentAccount, useCurrentClient } from '@mysten/dapp-kit-react';
 import { ORIGINAL_PACKAGE_ID } from '../config/contracts';
 import type { ParsedVerifierCap } from '../lib/types';
 
@@ -8,11 +7,12 @@ const CAP_TYPE = `${ORIGINAL_PACKAGE_ID}::verifier::VerifierCap`;
 
 export function useOwnedVerifierCaps() {
   const account = useCurrentAccount();
+  const client = useCurrentClient();
 
   return useQuery({
     queryKey: ['ownedVerifierCaps', account?.address],
     queryFn: async () => {
-      const result = await jsonRpcClient.getOwnedObjects({
+      const result = await client.getOwnedObjects({
         owner: account!.address,
         filter: { StructType: CAP_TYPE },
         options: { showContent: true },
@@ -30,5 +30,6 @@ export function useOwnedVerifierCaps() {
         });
     },
     enabled: !!account,
+    staleTime: 60_000,
   });
 }

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useBountyList } from '../hooks/useBountyList';
+import { useTaskTypes } from '../hooks/useTaskType';
 import { BountyCard } from '../components/bounty/BountyCard';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { STATUS_LABEL } from '../lib/constants';
@@ -17,6 +18,8 @@ const FILTER_OPTIONS = [
 
 export function DashboardPage() {
   const { data: bounties, isLoading, error } = useBountyList();
+  const bountyIds = useMemo(() => bounties?.map(b => b.id) ?? [], [bounties]);
+  const taskTypeMap = useTaskTypes(bountyIds);
   const [statusFilter, setStatusFilter] = useState(-1);
   const [search, setSearch] = useState('');
 
@@ -103,7 +106,7 @@ export function DashboardPage() {
       {filtered && filtered.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((bounty) => (
-            <BountyCard key={bounty.id} bounty={bounty} />
+            <BountyCard key={bounty.id} bounty={bounty} taskType={taskTypeMap.get(bounty.id)?.taskType} />
           ))}
         </div>
       )}

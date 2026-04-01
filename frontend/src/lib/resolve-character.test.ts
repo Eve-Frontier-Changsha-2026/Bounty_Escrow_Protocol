@@ -1,15 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolveCharacterItemId } from './resolve-character';
 
-vi.mock('./rpc', () => ({
-  jsonRpcClient: {
-    getObject: vi.fn(),
-  },
-}));
-
-import { jsonRpcClient } from './rpc';
-
-const mockGetObject = vi.mocked(jsonRpcClient.getObject);
+const mockGetObject = vi.fn();
+const mockClient = { getObject: mockGetObject } as Parameters<typeof resolveCharacterItemId>[0];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -37,7 +30,7 @@ describe('resolveCharacterItemId', () => {
       },
     });
 
-    const result = await resolveCharacterItemId('0xabc123');
+    const result = await resolveCharacterItemId(mockClient, '0xabc123');
     expect(result).toBe('2112000187');
     expect(mockGetObject).toHaveBeenCalledWith({
       id: '0xabc123',
@@ -48,7 +41,7 @@ describe('resolveCharacterItemId', () => {
   it('throws when object not found (no data)', async () => {
     mockGetObject.mockResolvedValue({ data: null } as never);
 
-    await expect(resolveCharacterItemId('0xnonexist'))
+    await expect(resolveCharacterItemId(mockClient, '0xnonexist'))
       .rejects.toThrow('Character object not found: 0xnonexist');
   });
 
@@ -64,7 +57,7 @@ describe('resolveCharacterItemId', () => {
       },
     } as never);
 
-    await expect(resolveCharacterItemId('0xpkg'))
+    await expect(resolveCharacterItemId(mockClient, '0xpkg'))
       .rejects.toThrow('Character object not found: 0xpkg');
   });
 
@@ -85,7 +78,7 @@ describe('resolveCharacterItemId', () => {
       },
     });
 
-    await expect(resolveCharacterItemId('0xbad'))
+    await expect(resolveCharacterItemId(mockClient, '0xbad'))
       .rejects.toThrow('Character missing key.item_id: 0xbad');
   });
 
@@ -106,7 +99,7 @@ describe('resolveCharacterItemId', () => {
       },
     });
 
-    await expect(resolveCharacterItemId('0xpartial'))
+    await expect(resolveCharacterItemId(mockClient, '0xpartial'))
       .rejects.toThrow('Character missing key.item_id: 0xpartial');
   });
 
@@ -114,12 +107,12 @@ describe('resolveCharacterItemId', () => {
 
   it('handles RPC network failure', async () => {
     mockGetObject.mockRejectedValue(new Error('RPC timeout'));
-    await expect(resolveCharacterItemId('0xany')).rejects.toThrow('RPC timeout');
+    await expect(resolveCharacterItemId(mockClient, '0xany')).rejects.toThrow('RPC timeout');
   });
 
   it('handles empty string object ID', async () => {
     mockGetObject.mockResolvedValue({ data: null } as never);
-    await expect(resolveCharacterItemId('')).rejects.toThrow('Character object not found: ');
+    await expect(resolveCharacterItemId(mockClient, '')).rejects.toThrow('Character object not found: ');
   });
 
   it('returns string item_id even for large u64 values', async () => {
@@ -143,7 +136,7 @@ describe('resolveCharacterItemId', () => {
       },
     });
 
-    const result = await resolveCharacterItemId('0xlarge');
+    const result = await resolveCharacterItemId(mockClient, '0xlarge');
     expect(result).toBe('18446744073709551615');
   });
 });

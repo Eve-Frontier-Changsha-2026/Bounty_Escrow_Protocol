@@ -6,11 +6,15 @@ import { StatusBadge } from './StatusBadge';
 import { TaskTypeBadge } from './TaskTypeBadge';
 import { CountdownTimer } from './CountdownTimer';
 import { BountyStats } from './BountyStats';
-import { useTaskType } from '../../hooks/useTaskType';
 
-export function BountyCard({ bounty }: { bounty: ParsedBounty }) {
+interface BountyCardProps {
+  bounty: ParsedBounty;
+  /** Pre-fetched task type (from batch query). When omitted, no badge is shown. */
+  taskType?: number;
+}
+
+export function BountyCard({ bounty, taskType }: BountyCardProps) {
   const isActive = bounty.status === BountyStatus.OPEN || bounty.status === BountyStatus.CLAIMED;
-  const { data: taskTypeConfig } = useTaskType(bounty.id);
 
   return (
     <Link
@@ -22,7 +26,7 @@ export function BountyCard({ bounty }: { bounty: ParsedBounty }) {
           <h3 className="font-heading text-sm text-eve-text truncate">
             {bounty.title}
           </h3>
-          {taskTypeConfig && <TaskTypeBadge taskType={taskTypeConfig.taskType} />}
+          {taskType != null && <TaskTypeBadge taskType={taskType} />}
         </div>
         <StatusBadge status={bounty.status} />
       </div>

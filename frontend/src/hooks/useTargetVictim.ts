@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { V7_PACKAGE_ID } from '../config/contracts';
 import type { TargetVictim } from '../lib/types';
 
 export function useTargetVictim(bountyId: string | undefined) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['targetVictim', bountyId],
     queryFn: async (): Promise<TargetVictim | null> => {
-      const result = await jsonRpcClient.getDynamicFieldObject({
+      const result = await client.getDynamicFieldObject({
         parentId: bountyId!,
         name: {
           type: `${V7_PACKAGE_ID}::task_type::TargetVictimKey`,
@@ -29,5 +30,6 @@ export function useTargetVictim(bountyId: string | undefined) {
       };
     },
     enabled: !!bountyId,
+    staleTime: 60_000,
   });
 }

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { jsonRpcClient } from '../lib/rpc';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import { V7_PACKAGE_ID } from '../config/contracts';
 import type { ParsedViewerReceipt } from '../lib/types';
 
@@ -11,12 +11,13 @@ export function useViewerReceipt(
   ownerAddress: string | undefined,
   bountyId: string | undefined,
 ) {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['viewerReceipt', ownerAddress, bountyId],
     queryFn: async (): Promise<ParsedViewerReceipt | null> => {
       const receiptType = `${V7_PACKAGE_ID}::encrypted_details::BountyViewerReceipt`;
 
-      const result = await jsonRpcClient.getOwnedObjects({
+      const result = await client.getOwnedObjects({
         owner: ownerAddress!,
         filter: { StructType: receiptType },
         options: { showContent: true },
@@ -40,5 +41,6 @@ export function useViewerReceipt(
       return null;
     },
     enabled: !!ownerAddress && !!bountyId,
+    staleTime: 60_000,
   });
 }

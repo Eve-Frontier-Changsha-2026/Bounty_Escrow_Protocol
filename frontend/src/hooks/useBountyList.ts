@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
+import { useCurrentClient } from '@mysten/dapp-kit-react';
 import type { SuiEvent } from '@mysten/sui/client';
-import { jsonRpcClient } from '../lib/rpc';
 import { ORIGINAL_PACKAGE_ID } from '../config/contracts';
 import type { ParsedBounty, BountyCreatedEvent } from '../lib/types';
 
@@ -40,6 +40,7 @@ function parseBountyFields(id: string, fields: Record<string, unknown>, coinType
 }
 
 export function useBountyList() {
+  const client = useCurrentClient();
   return useQuery({
     queryKey: ['bountyList'],
     queryFn: async () => {
@@ -50,7 +51,7 @@ export function useBountyList() {
       const MAX_PAGES = 10;
 
       for (let page = 0; page < MAX_PAGES; page++) {
-        const events = await jsonRpcClient.queryEvents({
+        const events = await client.queryEvents({
           query: { MoveEventType: eventType },
           limit: 50,
           order: 'descending',
@@ -76,9 +77,9 @@ export function useBountyList() {
       const uniqueMap = new Map(bountyMeta.map((b) => [b.id, b]));
       const unique = [...uniqueMap.values()];
 
-      // Step 3: Fetch current object state via JSON-RPC (gRPC returns raw BCS, not parsed fields)
+      // Step 3: Fetch current object state
       const objectIds = unique.map((b) => b.id);
-      const objects = await jsonRpcClient.multiGetObjects({
+      const objects = await client.multiGetObjects({
         ids: objectIds,
         options: { showContent: true },
       });
